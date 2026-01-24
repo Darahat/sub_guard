@@ -1,0 +1,436 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../features/insights/presentation/screens/insights_screen.dart';
+import '../../features/notifications/presentation/screens/notification_settings_screen.dart';
+import '../../features/subscriptions/presentation/screens/add_edit_subscription_screen.dart';
+// Import screens
+import '../../features/subscriptions/presentation/screens/dashboard_screen.dart';
+import '../../features/subscriptions/presentation/screens/subscription_detail_screen.dart';
+// import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
+// import '../../features/notifications/presentation/screens/notifications_screen.dart';
+// import '../../features/settings/presentation/screens/settings_screen.dart';
+
+class AppRouter {
+  // Route names
+  static const String splash = '/';
+  static const String onboarding = '/onboarding';
+  static const String login = '/login';
+  static const String signup = '/signup';
+  static const String forgotPassword = '/forgot-password';
+  static const String dashboard = '/dashboard';
+  static const String subscriptions = '/subscriptions';
+  static const String subscriptionDetail = '/subscriptions/:id';
+  static const String addSubscription = '/subscriptions/add';
+  static const String insights = '/insights';
+  static const String notifications = '/notifications';
+  static const String settings = '/settings';
+  static const String profile = '/profile';
+  static const String editProfile = '/profile/edit';
+  static const String changePassword = '/profile/change-password';
+  static const String emailSettings = '/settings/email';
+  static const String notificationSettings = '/settings/notifications';
+  static const String billingSettings = '/settings/billing';
+  static const String about = '/settings/about';
+  static const String privacy = '/settings/privacy';
+  static const String terms = '/settings/terms';
+
+  static GoRouter router = GoRouter(
+    initialLocation: splash,
+    debugLogDiagnostics: true,
+    routes: [
+      // Splash / Initial Route
+      GoRoute(
+        path: splash,
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+
+      // Onboarding
+      GoRoute(
+        path: onboarding,
+        name: 'onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+
+      // Auth Routes
+      GoRoute(
+        path: login,
+        name: 'login',
+        builder: (context, state) => const LoginScreen(),
+      ),
+
+      GoRoute(
+        path: signup,
+        name: 'signup',
+        builder: (context, state) => const SignupScreen(),
+      ),
+
+      GoRoute(
+        path: forgotPassword,
+        name: 'forgotPassword',
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+
+      // Main App Routes
+      GoRoute(
+        path: dashboard,
+        name: 'dashboard',
+        builder: (context, state) =>
+            const DashboardScreen(), // Real subscription dashboard
+      ),
+
+      // Subscriptions
+      GoRoute(
+        path: subscriptions,
+        name: 'subscriptions',
+        builder: (context, state) => const SubscriptionsScreenPlaceholder(),
+        routes: [
+          GoRoute(
+            path: 'add',
+            name: 'addSubscription',
+            builder: (context, state) => const AddEditSubscriptionScreen(),
+          ),
+          GoRoute(
+            path: 'edit/:id',
+            name: 'editSubscription',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return AddEditSubscriptionScreen(subscriptionId: id);
+            },
+          ),
+          GoRoute(
+            path: ':id',
+            name: 'subscriptionDetail',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return SubscriptionDetailScreen(subscriptionId: id);
+            },
+          ),
+        ],
+      ),
+
+      // Insights
+      GoRoute(
+        path: insights,
+        name: 'insights',
+        builder: (context, state) =>
+            const InsightsScreen(), // Real insights screen
+      ),
+
+      // Notifications
+      GoRoute(
+        path: notifications,
+        name: 'notifications',
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+
+      // Settings
+      GoRoute(
+        path: settings,
+        name: 'settings',
+        builder: (context, state) => const SettingsScreen(),
+        routes: [
+          GoRoute(
+            path: 'email',
+            name: 'emailSettings',
+            builder: (context, state) => const EmailSettingsScreen(),
+          ),
+          GoRoute(
+            path: 'notifications',
+            name: 'notificationSettings',
+            builder: (context, state) => const NotificationSettingsScreen(),
+          ),
+          GoRoute(
+            path: 'billing',
+            name: 'billingSettings',
+            builder: (context, state) => const BillingSettingsScreen(),
+          ),
+          GoRoute(
+            path: 'about',
+            name: 'about',
+            builder: (context, state) => const AboutScreen(),
+          ),
+          GoRoute(
+            path: 'privacy',
+            name: 'privacy',
+            builder: (context, state) => const PrivacyScreen(),
+          ),
+          GoRoute(
+            path: 'terms',
+            name: 'terms',
+            builder: (context, state) => const TermsScreen(),
+          ),
+        ],
+      ),
+
+      // Profile
+      GoRoute(
+        path: profile,
+        name: 'profile',
+        builder: (context, state) => const ProfileScreen(),
+        routes: [
+          GoRoute(
+            path: 'edit',
+            name: 'editProfile',
+            builder: (context, state) => const EditProfileScreen(),
+          ),
+          GoRoute(
+            path: 'change-password',
+            name: 'changePassword',
+            builder: (context, state) => const ChangePasswordScreen(),
+          ),
+        ],
+      ),
+    ],
+
+    // Error handler
+    errorBuilder: (context, state) =>
+        ErrorScreen(error: state.error.toString()),
+
+    // Redirect logic
+    redirect: (context, state) {
+      // Add authentication check logic here
+      // For now, return null (no redirect)
+      return null;
+    },
+  );
+}
+
+// Provider for router
+final routerProvider = Provider<GoRouter>((ref) {
+  return AppRouter.router;
+});
+
+// Temporary placeholder screens (will be replaced with actual screens)
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  }
+}
+
+class OnboardingScreen extends StatelessWidget {
+  const OnboardingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Onboarding')),
+      body: const Center(child: Text('Onboarding Screen')),
+    );
+  }
+}
+
+class LoginScreen extends StatelessWidget {
+  const LoginScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login')),
+      body: const Center(child: Text('Login Screen')),
+    );
+  }
+}
+
+class SignupScreen extends StatelessWidget {
+  const SignupScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Signup')),
+      body: const Center(child: Text('Signup Screen')),
+    );
+  }
+}
+
+class ForgotPasswordScreen extends StatelessWidget {
+  const ForgotPasswordScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Forgot Password')),
+      body: const Center(child: Text('Forgot Password Screen')),
+    );
+  }
+}
+
+class DashboardScreenPlaceholder extends StatelessWidget {
+  const DashboardScreenPlaceholder({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Dashboard (Placeholder)')),
+      body: const Center(
+        child: Text('Placeholder - Use /dashboard for subscription dashboard'),
+      ),
+    );
+  }
+}
+
+class SubscriptionsScreenPlaceholder extends StatelessWidget {
+  const SubscriptionsScreenPlaceholder({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Subscriptions')),
+      body: const Center(child: Text('Subscriptions Screen')),
+    );
+  }
+}
+
+class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Notifications')),
+      body: const Center(child: Text('Notifications Screen')),
+    );
+  }
+}
+
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: const Center(child: Text('Settings Screen')),
+    );
+  }
+}
+
+class EmailSettingsScreen extends StatelessWidget {
+  const EmailSettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Email Settings')),
+      body: const Center(child: Text('Email Settings Screen')),
+    );
+  }
+}
+
+class BillingSettingsScreen extends StatelessWidget {
+  const BillingSettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Billing')),
+      body: const Center(child: Text('Billing Settings Screen')),
+    );
+  }
+}
+
+class AboutScreen extends StatelessWidget {
+  const AboutScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('About')),
+      body: const Center(child: Text('About Screen')),
+    );
+  }
+}
+
+class PrivacyScreen extends StatelessWidget {
+  const PrivacyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Privacy Policy')),
+      body: const Center(child: Text('Privacy Policy Screen')),
+    );
+  }
+}
+
+class TermsScreen extends StatelessWidget {
+  const TermsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Terms of Service')),
+      body: const Center(child: Text('Terms of Service Screen')),
+    );
+  }
+}
+
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Profile')),
+      body: const Center(child: Text('Profile Screen')),
+    );
+  }
+}
+
+class EditProfileScreen extends StatelessWidget {
+  const EditProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Edit Profile')),
+      body: const Center(child: Text('Edit Profile Screen')),
+    );
+  }
+}
+
+class ChangePasswordScreen extends StatelessWidget {
+  const ChangePasswordScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Change Password')),
+      body: const Center(child: Text('Change Password Screen')),
+    );
+  }
+}
+
+class ErrorScreen extends StatelessWidget {
+  final String error;
+
+  const ErrorScreen({super.key, required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Error')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 16),
+            Text('Error: $error'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => context.go(AppRouter.dashboard),
+              child: const Text('Go to Dashboard'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

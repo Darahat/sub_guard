@@ -1,0 +1,19 @@
+import 'package:dartz/dartz.dart';
+
+import '../../../../core/error/failures.dart';
+import '../entities/user_entity.dart';
+import '../repositories/auth_repository.dart';
+
+class SignUpWithEmailUseCase {
+  final AuthRepository repository;
+
+  SignUpWithEmailUseCase(this.repository);
+
+  Future<Either<Failure, UserEntity>> call({
+    required String email,
+    required String password,
+    required String displayName,
+  }) async {
+    return await repository.signUpWithEmail(email, password, displayName);
+  }
+}
