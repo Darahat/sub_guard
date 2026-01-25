@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -31,35 +33,47 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Initialize Firebase
+  // Initialize Firebase (optional - app will work without it)
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
     logger.info('✅ Firebase initialized successfully');
   } catch (e) {
-    logger.error('❌ Firebase initialization failed: $e');
-    // Note: App will still run but Firebase features won't work
+    logger.warning('⚠️ Firebase initialization skipped: $e');
+    logger.info('App will run without Firebase features (sync, remote backup)');
+    // Continue without Firebase - local features will still work
   }
 
-  // Initialize Isar database
-  late Isar isar;
+  // Initialize Isar database (non-blocking)
+  late final Isar isar;
   try {
     final dir = await getApplicationDocumentsDirectory();
-    isar = await Isar.open(
-      [
-        UserModelSchema,
-        SubscriptionModelSchema,
-        NotificationModelSchema,
-        NotificationSettingsModelSchema,
-      ],
-      directory: dir.path,
-      name: 'subguard_db',
-    );
+    isar =
+        await Isar.open(
+          [
+            UserModelSchema,
+            SubscriptionModelSchema,
+            NotificationModelSchema,
+            NotificationSettingsModelSchema,
+          ],
+          directory: dir.path,
+          name: 'subguard_db',
+          inspector: false, // Disable inspector in production
+        ).timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            logger.error('⚠️ Isar initialization timed out');
+            throw TimeoutException('Database initialization timeout');
+          },
+        );
     logger.info('✅ Isar database initialized');
-  } catch (e) {
+  } catch (e, stackTrace) {
     logger.error('❌ Isar initialization failed: $e');
-    rethrow; // Isar is critical, so we rethrow
+    logger.error('Stack trace: $stackTrace');
+    // Create a mock Isar instance or handle gracefully
+    // For now, we'll rethrow but with better logging
+    rethrow;
   }
 
   // Initialize logger

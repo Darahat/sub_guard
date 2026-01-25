@@ -204,12 +204,83 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 // Temporary placeholder screens (will be replaced with actual screens)
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _navigateToHome();
+  }
+
+  Future<void> _navigateToHome() async {
+    try {
+      // Wait for 2 seconds to show splash
+      await Future.delayed(const Duration(seconds: 2));
+
+      if (!mounted) return;
+
+      // Navigate to dashboard
+      context.go(AppRouter.dashboard);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Navigation failed: $e';
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.subscriptions, size: 80, color: Colors.blue),
+            const SizedBox(height: 24),
+            const Text(
+              'SubGuard',
+              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 48),
+            if (_error == null)
+              const CircularProgressIndicator()
+            else
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    const Icon(Icons.error, color: Colors.red, size: 48),
+                    const SizedBox(height: 16),
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        setState(() => _error = null);
+                        _navigateToHome();
+                      },
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
