@@ -92,8 +92,10 @@ dependencies:
   logger: ^2.5.0
   connectivity_plus: ^6.1.0
   package_info_plus: ^8.1.0
-  device_info_plus: ^11.1.1
   path_provider: ^2.1.4
+  csv: ^6.0.0
+  share_plus: ^10.0.2
+  file_picker: ^8.1.4
 
   # Email API - SAFE ✅
   googleapis: ^13.2.0

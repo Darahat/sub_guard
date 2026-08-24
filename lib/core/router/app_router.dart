@@ -2,20 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../services/onboarding_service.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/insights/presentation/screens/insights_screen.dart';
 import '../../features/notifications/presentation/screens/notification_settings_screen.dart';
+import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
+import '../../features/onboarding/presentation/screens/product_tour_screen.dart';
+import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/subscriptions/presentation/screens/add_edit_subscription_screen.dart';
-// Import screens
 import '../../features/subscriptions/presentation/screens/dashboard_screen.dart';
 import '../../features/subscriptions/presentation/screens/subscription_detail_screen.dart';
-// import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
-// import '../../features/notifications/presentation/screens/notifications_screen.dart';
-// import '../../features/settings/presentation/screens/settings_screen.dart';
 
 class AppRouter {
   // Route names
   static const String splash = '/';
   static const String onboarding = '/onboarding';
+  static const String productTour = '/onboarding/tour';
   static const String login = '/login';
   static const String signup = '/signup';
   static const String forgotPassword = '/forgot-password';
@@ -47,11 +51,18 @@ class AppRouter {
         builder: (context, state) => const SplashScreen(),
       ),
 
-      // Onboarding
+      // Onboarding & Interactive Tour
       GoRoute(
         path: onboarding,
         name: 'onboarding',
         builder: (context, state) => const OnboardingScreen(),
+        routes: [
+          GoRoute(
+            path: 'tour',
+            name: 'productTour',
+            builder: (context, state) => const ProductTourScreen(),
+          ),
+        ],
       ),
 
       // Auth Routes
@@ -203,15 +214,15 @@ final routerProvider = Provider<GoRouter>((ref) {
   return AppRouter.router;
 });
 
-// Temporary placeholder screens (will be replaced with actual screens)
-class SplashScreen extends StatefulWidget {
+// Splash Screen with intelligent onboarding and auth routing
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   String? _error;
 
   @override
@@ -222,18 +233,23 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _navigateToHome() async {
     try {
-      // Wait for 2 seconds to show splash
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(const Duration(milliseconds: 1200));
 
       if (!mounted) return;
 
-      // Navigate to dashboard
-      context.go(AppRouter.dashboard);
+      final onboardingService = ref.read(onboardingServiceProvider);
+      final hasCompleted = await onboardingService.hasCompletedOnboarding();
+
+      if (!mounted) return;
+
+      if (!hasCompleted) {
+        context.go(AppRouter.onboarding);
+      } else {
+        context.go(AppRouter.dashboard);
+      }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _error = 'Navigation failed: $e';
-        });
+        context.go(AppRouter.dashboard);
       }
     }
   }
@@ -284,54 +300,6 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
-class OnboardingScreen extends StatelessWidget {
-  const OnboardingScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Onboarding')),
-      body: const Center(child: Text('Onboarding Screen')),
-    );
-  }
-}
-
-class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
-      body: const Center(child: Text('Login Screen')),
-    );
-  }
-}
-
-class SignupScreen extends StatelessWidget {
-  const SignupScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Signup')),
-      body: const Center(child: Text('Signup Screen')),
-    );
-  }
-}
-
-class ForgotPasswordScreen extends StatelessWidget {
-  const ForgotPasswordScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Forgot Password')),
-      body: const Center(child: Text('Forgot Password Screen')),
-    );
-  }
-}
-
 class DashboardScreenPlaceholder extends StatelessWidget {
   const DashboardScreenPlaceholder({super.key});
 
@@ -366,18 +334,6 @@ class NotificationsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
       body: const Center(child: Text('Notifications Screen')),
-    );
-  }
-}
-
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: const Center(child: Text('Settings Screen')),
     );
   }
 }

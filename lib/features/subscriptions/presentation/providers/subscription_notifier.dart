@@ -6,8 +6,10 @@ import '../../domain/entities/subscription_entity.dart';
 import '../../domain/usecases/add_subscription_usecase.dart';
 import '../../domain/usecases/cancel_subscription_usecase.dart';
 import '../../domain/usecases/delete_subscription_usecase.dart';
+import '../../domain/usecases/export_subscriptions_csv_usecase.dart';
 import '../../domain/usecases/get_all_subscriptions_usecase.dart';
 import '../../domain/usecases/get_total_spending_usecase.dart';
+import '../../domain/usecases/import_subscriptions_csv_usecase.dart';
 import '../../domain/usecases/update_subscription_usecase.dart';
 import 'subscription_providers.dart';
 
@@ -83,6 +85,8 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
   final CancelNotificationsBySubscriptionUseCase
   cancelNotificationsBySubscriptionUseCase;
   final GetNotificationSettingsUseCase getNotificationSettingsUseCase;
+  final ExportSubscriptionsCsvUseCase exportSubscriptionsCsvUseCase;
+  final ImportSubscriptionsCsvUseCase importSubscriptionsCsvUseCase;
 
   SubscriptionNotifier({
     required this.getAllSubscriptionsUseCase,
@@ -95,6 +99,8 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     required this.scheduleRenewalReminderUseCase,
     required this.cancelNotificationsBySubscriptionUseCase,
     required this.getNotificationSettingsUseCase,
+    required this.exportSubscriptionsCsvUseCase,
+    required this.importSubscriptionsCsvUseCase,
   }) : super(const SubscriptionState()) {
     // Load subscriptions on init
     loadSubscriptions();
@@ -281,6 +287,66 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     state = state.copyWith(clearSuccess: true);
   }
 
+  /// Export all subscriptions to CSV and trigger share
+  Future<void> exportCsv() async {
+    if (state.subscriptions.isEmpty) {
+      state = state.copyWith(errorMessage: 'No subscriptions to export.');
+      return;
+    }
+
+    state = state.copyWith(isLoading: true);
+    final result = await exportSubscriptionsCsvUseCase.execute(state.subscriptions);
+
+    result.fold(
+      (failure) => state = state.copyWith(
+        isLoading: false,
+        errorMessage: failure.message,
+      ),
+      (filePath) => state = state.copyWith(
+        isLoading: false,
+        successMessage: 'CSV exported successfully!',
+      ),
+    );
+  }
+
+  /// Pick and import subscriptions from CSV file
+  Future<void> importCsv({required String userId}) async {
+    state = state.copyWith(isLoading: true);
+    final result = await importSubscriptionsCsvUseCase.execute(userId: userId);
+
+    result.fold(
+      (failure) => state = state.copyWith(
+        isLoading: false,
+        errorMessage: failure.message,
+      ),
+      (importResult) {
+        if (importResult == null) {
+          // Cancelled by user
+          state = state.copyWith(isLoading: false);
+          return;
+        }
+
+        if (importResult.validCount == 0) {
+          state = state.copyWith(
+            isLoading: false,
+            errorMessage: importResult.errorMessages.isNotEmpty
+                ? importResult.errorMessages.first
+                : 'No valid subscriptions could be imported from CSV.',
+          );
+        } else {
+          state = state.copyWith(
+            isLoading: false,
+            successMessage:
+                'Successfully imported ${importResult.validCount} subscriptions!'
+                '${importResult.skippedCount > 0 ? ' (${importResult.skippedCount} rows skipped)' : ''}',
+          );
+          // Reload subscriptions to update list and totals
+          loadSubscriptions();
+        }
+      },
+    );
+  }
+
   /// Schedule notifications for a subscription
   Future<void> _scheduleNotificationsForSubscription(
     SubscriptionEntity subscription,
@@ -330,6 +396,12 @@ final subscriptionNotifierProvider =
         ),
         getNotificationSettingsUseCase: ref.watch(
           getNotificationSettingsUseCaseProvider,
+        ),
+        exportSubscriptionsCsvUseCase: ref.watch(
+          exportSubscriptionsCsvUseCaseProvider,
+        ),
+        importSubscriptionsCsvUseCase: ref.watch(
+          importSubscriptionsCsvUseCaseProvider,
         ),
       );
     });

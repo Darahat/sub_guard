@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/sync/sync_service.dart';
+import '../../../../core/sync/sync_status.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
 import '../../domain/entities/subscription_entity.dart';
@@ -24,6 +26,42 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Widget _buildSyncStatusIcon() {
+    final syncStatusAsync = ref.watch(syncStatusStreamProvider);
+    return syncStatusAsync.when(
+      data: (status) {
+        if (status.isSyncing) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8),
+            child: Center(
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+        if (status.hasError) {
+          return IconButton(
+            icon: const Icon(Icons.cloud_off, color: Colors.orange, size: 20),
+            tooltip: 'Sync issue. Tap to retry',
+            onPressed: () => ref.read(syncServiceProvider).syncAll(),
+          );
+        }
+        if (status.state == SyncState.success) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8),
+            child: Icon(Icons.cloud_done, color: Colors.green, size: 20),
+          );
+        }
+        return const SizedBox.shrink();
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
   }
 
   @override
@@ -60,6 +98,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       appBar: AppBar(
         title: const Text('My Subscriptions'),
         actions: [
+          _buildSyncStatusIcon(),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () => context.push('/notifications'),
@@ -72,9 +111,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await ref
-              .read(subscriptionNotifierProvider.notifier)
-              .loadSubscriptions();
+          await Future.wait([
+            ref.read(subscriptionNotifierProvider.notifier).loadSubscriptions(),
+            ref.read(syncServiceProvider).syncAll(),
+          ]);
         },
         child:
             subscriptionState.isLoading &&

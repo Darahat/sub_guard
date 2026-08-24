@@ -29,10 +29,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.macOS:
         return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -46,37 +43,49 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'YOUR_WEB_API_KEY',
-    appId: 'YOUR_WEB_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
+    apiKey: 'AIzaSyCVRBk10Z6_dAo-wP3caETpeKSUIKcu2m8',
+    appId: '1:142135278951:web:4e7e7b7a8963f34f2003c2',
+    messagingSenderId: '142135278951',
+    projectId: 'sub-guard-cb8f5',
+    authDomain: 'sub-guard-cb8f5.firebaseapp.com',
+    storageBucket: 'sub-guard-cb8f5.firebasestorage.app',
+    measurementId: 'G-S5C2T6EGTM',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'YOUR_ANDROID_API_KEY',
-    appId: 'YOUR_ANDROID_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
+    apiKey: 'AIzaSyBuV_El_24gueBP3yOSCrDXO-rH8tAaKZw',
+    appId: '1:142135278951:android:f917221539295ba82003c2',
+    messagingSenderId: '142135278951',
+    projectId: 'sub-guard-cb8f5',
+    storageBucket: 'sub-guard-cb8f5.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'YOUR_IOS_API_KEY',
-    appId: 'YOUR_IOS_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
-    iosBundleId: 'com.subguard.app',
+    apiKey: 'AIzaSyCUjq4d6TUSud4fcAeCYafJ7O7jNuiRdpw',
+    appId: '1:142135278951:ios:d829aa059a718d9d2003c2',
+    messagingSenderId: '142135278951',
+    projectId: 'sub-guard-cb8f5',
+    storageBucket: 'sub-guard-cb8f5.firebasestorage.app',
+    iosBundleId: 'com.example.subGuard',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'YOUR_MACOS_API_KEY',
-    appId: 'YOUR_MACOS_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
-    iosBundleId: 'com.subguard.app',
+    apiKey: 'AIzaSyCUjq4d6TUSud4fcAeCYafJ7O7jNuiRdpw',
+    appId: '1:142135278951:ios:d829aa059a718d9d2003c2',
+    messagingSenderId: '142135278951',
+    projectId: 'sub-guard-cb8f5',
+    storageBucket: 'sub-guard-cb8f5.firebasestorage.app',
+    iosBundleId: 'com.example.subGuard',
   );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyCVRBk10Z6_dAo-wP3caETpeKSUIKcu2m8',
+    appId: '1:142135278951:web:55dbf6a8a18c82d92003c2',
+    messagingSenderId: '142135278951',
+    projectId: 'sub-guard-cb8f5',
+    authDomain: 'sub-guard-cb8f5.firebaseapp.com',
+    storageBucket: 'sub-guard-cb8f5.firebasestorage.app',
+    measurementId: 'G-P8B3S05LMQ',
+  );
+
 }

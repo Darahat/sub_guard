@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../firebase/firebase_config.dart';
+import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/subscriptions/data/datasources/local_subscription_datasource.dart';
 import '../../features/subscriptions/data/datasources/remote_subscription_datasource.dart';
 import '../../features/subscriptions/presentation/providers/subscription_providers.dart';
@@ -55,10 +57,23 @@ class SyncService {
     await syncAll();
   }
 
-  /// Sync all data (subscriptions, budgets, etc.)
+  /// Sync all data (subscriptions, etc.)
   Future<void> syncAll({String? userId}) async {
     if (_currentStatus.isSyncing) {
       return; // Already syncing
+    }
+
+    // Determine current user ID
+    final currentUserId = userId ?? _ref.read(currentUserProvider)?.id;
+    if (currentUserId == null || currentUserId.isEmpty || currentUserId == 'local_user') {
+      // Local-only mode, no remote sync needed
+      _updateStatus(
+        _currentStatus.copyWith(
+          isSyncing: false,
+          state: SyncState.idle,
+        ),
+      );
+      return;
     }
 
     // Check connectivity
@@ -76,11 +91,6 @@ class SyncService {
           state: SyncState.syncing,
         ),
       );
-
-      // Get user ID from auth if not provided
-      // TODO: Get from auth provider
-      final currentUserId =
-          userId ?? 'demo-user'; // Replace with actual user ID
 
       // Sync subscriptions
       await _syncSubscriptions(currentUserId);
@@ -178,6 +188,13 @@ class SyncService {
   }
 }
 
+/// Provider for remote subscription data source
+final remoteSubscriptionDataSourceProvider =
+    Provider<RemoteSubscriptionDataSource>((ref) {
+      final firestore = ref.watch(firebaseFirestoreProvider);
+      return RemoteSubscriptionDataSourceImpl(firestore);
+    });
+
 /// Provider for SyncService
 final syncServiceProvider = Provider<SyncService>((ref) {
   final localDataSource = ref.watch(localSubscriptionDataSourceProvider);
@@ -202,11 +219,9 @@ final syncServiceProvider = Provider<SyncService>((ref) {
   return service;
 });
 
-/// Provider for remote subscription data source
-final remoteSubscriptionDataSourceProvider =
-    Provider<RemoteSubscriptionDataSource>((ref) {
-      // TODO: Get Firestore instance from Firebase setup
-      throw UnimplementedError(
-        'Remote subscription data source not configured yet',
-      );
-    });
+/// Stream provider for UI to observe sync status
+final syncStatusStreamProvider = StreamProvider<SyncStatus>((ref) {
+  final syncService = ref.watch(syncServiceProvider);
+  return syncService.syncStatusStream;
+});
+

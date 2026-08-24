@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'core/database/isar_provider.dart';
 import 'core/router/app_router.dart';
+import 'core/security/app_lock_gate.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/logger.dart';
 import 'features/auth/data/models/user_model.dart';
@@ -108,6 +109,11 @@ class SubGuardApp extends ConsumerWidget {
           ThemeMode.light, // TODO: Make this dynamic based on user preference
       // Router
       routerConfig: router,
+      builder: (context, child) {
+        return AppLockGate(
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }
