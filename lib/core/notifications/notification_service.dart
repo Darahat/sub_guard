@@ -35,7 +35,7 @@ class NotificationService {
 
     // Initialize plugin
     await _notificationsPlugin.initialize(
-      initializationSettings,
+      settings: initializationSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
@@ -90,15 +90,61 @@ class NotificationService {
         ?.createNotificationChannel(paymentChannel);
   }
 
-  /// Request notification permissions (iOS)
+  /// Request notification permissions (Android 13+ and iOS)
   Future<bool> requestPermissions() async {
+    final androidImplementation = _notificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (androidImplementation != null) {
+      await androidImplementation.requestNotificationsPermission();
+      await androidImplementation.requestExactAlarmsPermission();
+    }
+
     final result = await _notificationsPlugin
         .resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin
         >()
         ?.requestPermissions(alert: true, badge: true, sound: true);
 
-    return result ?? true; // Android always returns true
+    return result ?? true;
+  }
+
+  /// Show an immediate notification
+  Future<void> showNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+    String channelId = 'subscription_reminders',
+  }) async {
+    try {
+      await _notificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: NotificationDetails(
+          android: AndroidNotificationDetails(
+            channelId,
+            channelId == 'subscription_reminders'
+                ? 'Subscription Reminders'
+                : 'Trial Reminders',
+            channelDescription: 'Notifications for subscription management',
+            importance: Importance.max,
+            priority: Priority.high,
+            showWhen: true,
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        payload: payload,
+      );
+    } catch (e) {
+      throw CacheException('Failed to show notification: $e');
+    }
   }
 
   /// Schedule a notification
@@ -119,11 +165,11 @@ class NotificationService {
       final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
 
       await _notificationsPlugin.zonedSchedule(
-        id,
-        title,
-        body,
-        tzScheduledDate,
-        NotificationDetails(
+        id: id,
+        title: title,
+        body: body,
+        scheduledDate: tzScheduledDate,
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             channelId,
             channelId == 'subscription_reminders'
@@ -141,8 +187,6 @@ class NotificationService {
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
         payload: payload,
       );
     } catch (e) {
@@ -153,7 +197,7 @@ class NotificationService {
   /// Cancel a specific notification
   Future<void> cancelNotification(int id) async {
     try {
-      await _notificationsPlugin.cancel(id);
+      await _notificationsPlugin.cancel(id: id);
     } catch (e) {
       throw CacheException('Failed to cancel notification: $e');
     }

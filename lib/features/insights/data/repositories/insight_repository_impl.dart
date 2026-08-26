@@ -23,32 +23,55 @@ class InsightRepositoryImpl implements InsightRepository {
           .map((model) => model.toEntity())
           .toList();
 
-      // Filter subscriptions within date range
-      final filteredSubs = subscriptionEntities.where((sub) {
-        final subDate = sub.startDate ?? sub.createdAt ?? DateTime.now();
-        return subDate.isAfter(startDate) && subDate.isBefore(endDate);
-      }).toList();
-
-      // Group by month and calculate spending
-      final Map<DateTime, List<SubscriptionEntity>> monthlyGroups = {};
-      for (var sub in filteredSubs) {
-        final subDate = sub.startDate ?? sub.createdAt ?? DateTime.now();
-        final monthKey = DateTime(subDate.year, subDate.month);
-        monthlyGroups.putIfAbsent(monthKey, () => []).add(sub);
+      if (subscriptionEntities.isEmpty) {
+        return const Right([]);
       }
 
-      // Create data points
-      final dataPoints = monthlyGroups.entries.map((entry) {
-        final monthlyTotal = entry.value.fold<double>(
-          0.0,
-          (sum, sub) => sum + sub.monthlyCost,
+      final currentMonthlySpend = subscriptionEntities
+          .where((s) => s.status == SubscriptionStatus.active)
+          .fold<double>(0.0, (sum, sub) => sum + sub.monthlyCost);
+      final currentActiveCount = subscriptionEntities
+          .where((s) => s.status == SubscriptionStatus.active)
+          .length;
+
+      final dataPoints = <SpendingDataPoint>[];
+      DateTime currentMonth = DateTime(startDate.year, startDate.month);
+      final targetEndMonth = DateTime(endDate.year, endDate.month);
+
+      while (!currentMonth.isAfter(targetEndMonth)) {
+        final subsInMonth = subscriptionEntities.where((sub) {
+          final created = sub.startDate ?? sub.createdAt ?? DateTime.now();
+          final createdMonth = DateTime(created.year, created.month);
+          return !createdMonth.isAfter(currentMonth);
+        }).toList();
+
+        final monthSpend = subsInMonth.isEmpty
+            ? currentMonthlySpend
+            : subsInMonth
+                .where((s) => s.status == SubscriptionStatus.active)
+                .fold<double>(0.0, (sum, sub) => sum + sub.monthlyCost);
+
+        dataPoints.add(
+          SpendingDataPoint(
+            date: currentMonth,
+            amount: monthSpend > 0 ? monthSpend : currentMonthlySpend,
+            subscriptionCount: subsInMonth.isNotEmpty ? subsInMonth.length : currentActiveCount,
+          ),
         );
-        return SpendingDataPoint(
-          date: entry.key,
-          amount: monthlyTotal,
-          subscriptionCount: entry.value.length,
+
+        currentMonth = DateTime(currentMonth.year, currentMonth.month + 1);
+      }
+
+      // Ensure at least current month is present
+      if (dataPoints.isEmpty) {
+        dataPoints.add(
+          SpendingDataPoint(
+            date: DateTime(endDate.year, endDate.month),
+            amount: currentMonthlySpend,
+            subscriptionCount: currentActiveCount,
+          ),
         );
-      }).toList()..sort((a, b) => a.date.compareTo(b.date));
+      }
 
       return Right(dataPoints);
     } on CacheException {
@@ -67,24 +90,21 @@ class InsightRepositoryImpl implements InsightRepository {
           .map((model) => model.toEntity())
           .toList();
 
-      // Filter by date if provided
-      List<SubscriptionEntity> filteredSubs = subscriptionEntities;
-      if (startDate != null && endDate != null) {
-        filteredSubs = subscriptionEntities.where((sub) {
-          final subDate = sub.startDate ?? sub.createdAt ?? DateTime.now();
-          return subDate.isAfter(startDate) && subDate.isBefore(endDate);
-        }).toList();
+      if (subscriptionEntities.isEmpty) {
+        return const Right([]);
       }
 
-      // Group by category
+      // Group by category for all existing subscriptions
       final Map<String, List<SubscriptionEntity>> categoryGroups = {};
-      for (var sub in filteredSubs) {
-        final category = sub.category ?? 'Uncategorized';
+      for (var sub in subscriptionEntities) {
+        final category = sub.category != null && sub.category!.trim().isNotEmpty
+            ? sub.category!.trim()
+            : 'General';
         categoryGroups.putIfAbsent(category, () => []).add(sub);
       }
 
-      // Calculate total spending
-      final totalSpending = filteredSubs.fold<double>(
+      // Calculate total monthly spending across all categories
+      final totalSpending = subscriptionEntities.fold<double>(
         0.0,
         (sum, sub) => sum + sub.monthlyCost,
       );
@@ -196,8 +216,12 @@ class InsightRepositoryImpl implements InsightRepository {
           .map((model) => model.toEntity())
           .toList();
 
+      if (subscriptionEntities.isEmpty) {
+        return const Right([]);
+      }
+
       // Sort by monthly cost and take top N
-      final topSubs = subscriptionEntities
+      final topSubs = List<SubscriptionEntity>.from(subscriptionEntities)
         ..sort((a, b) => b.monthlyCost.compareTo(a.monthlyCost));
 
       final topList = topSubs.take(limit).map((sub) {
@@ -205,7 +229,7 @@ class InsightRepositoryImpl implements InsightRepository {
           serviceName: sub.serviceName,
           monthlyAmount: sub.monthlyCost,
           yearlyAmount: sub.yearlyCost,
-          category: sub.category ?? 'Uncategorized',
+          category: sub.category ?? 'General',
           logoUrl: sub.logoUrl,
         );
       }).toList();

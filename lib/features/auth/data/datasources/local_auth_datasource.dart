@@ -1,9 +1,10 @@
-import 'package:isar/isar.dart';
+import 'dart:convert';
+import 'package:hive_ce/hive.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../models/user_model.dart';
 
-/// Local authentication data source using Isar
+/// Local authentication data source using Hive
 abstract class LocalAuthDataSource {
   /// Get cached user
   Future<UserModel?> getCachedUser();
@@ -16,15 +17,25 @@ abstract class LocalAuthDataSource {
 }
 
 class LocalAuthDataSourceImpl implements LocalAuthDataSource {
-  final Isar isar;
+  final Box<String> box;
 
-  LocalAuthDataSourceImpl({required this.isar});
+  LocalAuthDataSourceImpl({required this.box});
+
+  static const String _cachedUserKey = 'current_cached_user';
 
   @override
   Future<UserModel?> getCachedUser() async {
     try {
-      final users = await isar.userModels.where().findAll();
-      return users.isEmpty ? null : users.first;
+      final jsonStr = box.get(_cachedUserKey);
+      if (jsonStr == null) {
+        // Fallback check if any user is stored
+        if (box.isNotEmpty) {
+          final first = box.values.first;
+          return UserModel.fromJson(json.decode(first) as Map<String, dynamic>);
+        }
+        return null;
+      }
+      return UserModel.fromJson(json.decode(jsonStr) as Map<String, dynamic>);
     } catch (e) {
       throw CacheException('Failed to get cached user: ${e.toString()}');
     }
@@ -33,12 +44,8 @@ class LocalAuthDataSourceImpl implements LocalAuthDataSource {
   @override
   Future<void> cacheUser(UserModel user) async {
     try {
-      await isar.writeTxn(() async {
-        // Clear existing users first
-        await isar.userModels.clear();
-        // Cache new user
-        await isar.userModels.put(user);
-      });
+      await box.put(_cachedUserKey, json.encode(user.toJson()));
+      await box.put(user.uid, json.encode(user.toJson()));
     } catch (e) {
       throw CacheException('Failed to cache user: ${e.toString()}');
     }
@@ -47,9 +54,7 @@ class LocalAuthDataSourceImpl implements LocalAuthDataSource {
   @override
   Future<void> clearCache() async {
     try {
-      await isar.writeTxn(() async {
-        await isar.userModels.clear();
-      });
+      await box.clear();
     } catch (e) {
       throw CacheException('Failed to clear cache: ${e.toString()}');
     }

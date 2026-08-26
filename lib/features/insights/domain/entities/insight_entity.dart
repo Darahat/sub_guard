@@ -1,46 +1,112 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
-
-part 'insight_entity.freezed.dart';
-
 /// Spending trend data point
-@freezed
-class SpendingDataPoint with _$SpendingDataPoint {
-  const factory SpendingDataPoint({
-    required DateTime date,
-    required double amount,
-    required int subscriptionCount,
-  }) = _SpendingDataPoint;
+class SpendingDataPoint {
+  final DateTime date;
+  final double amount;
+  final int subscriptionCount;
+
+  const SpendingDataPoint({
+    required this.date,
+    required this.amount,
+    required this.subscriptionCount,
+  });
+
+  SpendingDataPoint copyWith({
+    DateTime? date,
+    double? amount,
+    int? subscriptionCount,
+  }) {
+    return SpendingDataPoint(
+      date: date ?? this.date,
+      amount: amount ?? this.amount,
+      subscriptionCount: subscriptionCount ?? this.subscriptionCount,
+    );
+  }
 }
 
 /// Category spending breakdown
-@freezed
-class CategorySpending with _$CategorySpending {
-  const factory CategorySpending({
-    required String category,
-    required double amount,
-    required int subscriptionCount,
-    required double percentage,
-  }) = _CategorySpending;
+class CategorySpending {
+  final String category;
+  final double amount;
+  final int subscriptionCount;
+  final double percentage;
+
+  const CategorySpending({
+    required this.category,
+    required this.amount,
+    required this.subscriptionCount,
+    required this.percentage,
+  });
+
+  CategorySpending copyWith({
+    String? category,
+    double? amount,
+    int? subscriptionCount,
+    double? percentage,
+  }) {
+    return CategorySpending(
+      category: category ?? this.category,
+      amount: amount ?? this.amount,
+      subscriptionCount: subscriptionCount ?? this.subscriptionCount,
+      percentage: percentage ?? this.percentage,
+    );
+  }
 }
 
 /// Subscription statistics
-@freezed
-class SubscriptionStats with _$SubscriptionStats {
-  const factory SubscriptionStats({
-    required int totalSubscriptions,
-    required int activeSubscriptions,
-    required int pausedSubscriptions,
-    required int cancelledSubscriptions,
-    required double totalMonthlySpending,
-    required double totalYearlySpending,
-    required double averageSubscriptionCost,
-    required double highestSubscription,
-    required double lowestSubscription,
-    required int subscriptionsThisMonth,
-    required int subscriptionsThisYear,
-  }) = _SubscriptionStats;
+class SubscriptionStats {
+  final int totalSubscriptions;
+  final int activeSubscriptions;
+  final int pausedSubscriptions;
+  final int cancelledSubscriptions;
+  final double totalMonthlySpending;
+  final double totalYearlySpending;
+  final double averageSubscriptionCost;
+  final double highestSubscription;
+  final double lowestSubscription;
+  final int subscriptionsThisMonth;
+  final int subscriptionsThisYear;
 
-  const SubscriptionStats._();
+  const SubscriptionStats({
+    required this.totalSubscriptions,
+    required this.activeSubscriptions,
+    required this.pausedSubscriptions,
+    required this.cancelledSubscriptions,
+    required this.totalMonthlySpending,
+    required this.totalYearlySpending,
+    required this.averageSubscriptionCost,
+    required this.highestSubscription,
+    required this.lowestSubscription,
+    required this.subscriptionsThisMonth,
+    required this.subscriptionsThisYear,
+  });
+
+  SubscriptionStats copyWith({
+    int? totalSubscriptions,
+    int? activeSubscriptions,
+    int? pausedSubscriptions,
+    int? cancelledSubscriptions,
+    double? totalMonthlySpending,
+    double? totalYearlySpending,
+    double? averageSubscriptionCost,
+    double? highestSubscription,
+    double? lowestSubscription,
+    int? subscriptionsThisMonth,
+    int? subscriptionsThisYear,
+  }) {
+    return SubscriptionStats(
+      totalSubscriptions: totalSubscriptions ?? this.totalSubscriptions,
+      activeSubscriptions: activeSubscriptions ?? this.activeSubscriptions,
+      pausedSubscriptions: pausedSubscriptions ?? this.pausedSubscriptions,
+      cancelledSubscriptions: cancelledSubscriptions ?? this.cancelledSubscriptions,
+      totalMonthlySpending: totalMonthlySpending ?? this.totalMonthlySpending,
+      totalYearlySpending: totalYearlySpending ?? this.totalYearlySpending,
+      averageSubscriptionCost: averageSubscriptionCost ?? this.averageSubscriptionCost,
+      highestSubscription: highestSubscription ?? this.highestSubscription,
+      lowestSubscription: lowestSubscription ?? this.lowestSubscription,
+      subscriptionsThisMonth: subscriptionsThisMonth ?? this.subscriptionsThisMonth,
+      subscriptionsThisYear: subscriptionsThisYear ?? this.subscriptionsThisYear,
+    );
+  }
 
   /// Calculate growth rate compared to previous period
   double get monthlyGrowthRate => subscriptionsThisMonth > 0
@@ -52,15 +118,36 @@ class SubscriptionStats with _$SubscriptionStats {
 }
 
 /// Top subscription by spending
-@freezed
-class TopSubscription with _$TopSubscription {
-  const factory TopSubscription({
-    required String serviceName,
-    required double monthlyAmount,
-    required double yearlyAmount,
-    required String category,
+class TopSubscription {
+  final String serviceName;
+  final double monthlyAmount;
+  final double yearlyAmount;
+  final String category;
+  final String? logoUrl;
+
+  const TopSubscription({
+    required this.serviceName,
+    required this.monthlyAmount,
+    required this.yearlyAmount,
+    required this.category,
+    this.logoUrl,
+  });
+
+  TopSubscription copyWith({
+    String? serviceName,
+    double? monthlyAmount,
+    double? yearlyAmount,
+    String? category,
     String? logoUrl,
-  }) = _TopSubscription;
+  }) {
+    return TopSubscription(
+      serviceName: serviceName ?? this.serviceName,
+      monthlyAmount: monthlyAmount ?? this.monthlyAmount,
+      yearlyAmount: yearlyAmount ?? this.yearlyAmount,
+      category: category ?? this.category,
+      logoUrl: logoUrl ?? this.logoUrl,
+    );
+  }
 }
 
 /// Date range for filtering insights

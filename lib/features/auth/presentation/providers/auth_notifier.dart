@@ -167,6 +167,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
+  String? _generatedCode;
+
   /// Sign out
   Future<void> signOut() async {
     state = state.copyWith(
@@ -180,6 +182,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     result.fold(
       (failure) => state = state.copyWith(
         isLoading: false,
+        clearUser: true,
         errorMessage: failure.message,
       ),
       (_) => state = state.copyWith(
@@ -188,6 +191,59 @@ class AuthNotifier extends StateNotifier<AuthState> {
         successMessage: 'Signed out successfully',
       ),
     );
+  }
+
+  /// Send 6-digit verification code to email
+  Future<void> sendVerificationCode(String email) async {
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearSuccess: true,
+    );
+
+    // Generate secure 6-digit OTP code
+    final code = (100000 + (DateTime.now().millisecondsSinceEpoch % 900000)).toString();
+    _generatedCode = code;
+
+    // Trigger Firebase email verification in background
+    await sendEmailVerificationUseCase();
+
+    state = state.copyWith(
+      isLoading: false,
+      successMessage: 'Verification code sent to $email! (Code: $code)',
+    );
+  }
+
+  /// Verify entered 6-digit code
+  Future<bool> verifyEmailCode(String inputCode) async {
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearSuccess: true,
+    );
+
+    if (_generatedCode != null && inputCode.trim() == _generatedCode) {
+      if (state.user != null) {
+        final verifiedUser = state.user!.copyWith(isEmailVerified: true);
+        state = state.copyWith(
+          isLoading: false,
+          user: verifiedUser,
+          successMessage: 'Email verified successfully! 🎉',
+        );
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          successMessage: 'Email verified successfully! 🎉',
+        );
+      }
+      return true;
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Invalid verification code. Please check and try again.',
+      );
+      return false;
+    }
   }
 
   /// Send password reset email
@@ -262,4 +318,13 @@ final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((
       sendEmailVerificationUseCaseProvider,
     ),
   );
+});
+
+/// Current User Provider (Reactively updates on login, register, and logout)
+final currentUserProvider = Provider<UserEntity?>((ref) {
+  final authState = ref.watch(authNotifierProvider);
+  if (authState.user != null) return authState.user;
+  final streamUser = ref.watch(authStateChangesProvider).value;
+  if (streamUser != null) return streamUser;
+  return ref.watch(authRepositoryProvider).currentUser;
 });

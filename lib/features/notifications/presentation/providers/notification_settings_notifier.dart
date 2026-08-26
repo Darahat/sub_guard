@@ -110,11 +110,11 @@ class NotificationSettingsNotifier
   /// Send test notification
   Future<void> sendTestNotification() async {
     try {
-      await _notificationService.scheduleNotification(
+      await _notificationService.requestPermissions();
+      await _notificationService.showNotification(
         id: 99999,
-        title: 'Test Notification',
-        body: 'This is a test notification from SubGuard!',
-        scheduledDate: DateTime.now().add(const Duration(seconds: 5)),
+        title: '🔔 SubGuard Test Alarm',
+        body: 'Your subscription notifications and alarms are working perfectly!',
       );
     } catch (e) {
       state = state.copyWith(

@@ -2,11 +2,12 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../../core/database/isar_provider.dart';
+import '../../../../core/database/hive_provider.dart';
 import '../../../../core/notifications/notification_service.dart';
 import '../../data/datasources/local_notification_datasource.dart';
 import '../../data/repositories/notification_repository_impl.dart';
 import '../../domain/repositories/notification_repository.dart';
+import '../../domain/services/contract_notification_scheduler.dart';
 import '../../domain/usecases/notification_usecases.dart';
 
 /// Provider for NotificationService
@@ -23,8 +24,10 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 /// Provider for LocalNotificationDataSource
 final localNotificationDataSourceProvider =
     Provider<LocalNotificationDataSource>((ref) {
-      final isar = ref.watch(isarProvider);
-      return LocalNotificationDataSourceImpl(isar);
+      return LocalNotificationDataSourceImpl(
+        notificationsBox: ref.watch(notificationsBoxProvider),
+        settingsBox: ref.watch(settingsBoxProvider),
+      );
     });
 
 /// Provider for NotificationRepository
@@ -70,4 +73,13 @@ final updateNotificationSettingsUseCaseProvider =
     Provider<UpdateNotificationSettingsUseCase>((ref) {
       final repository = ref.watch(notificationRepositoryProvider);
       return UpdateNotificationSettingsUseCase(repository);
+    });
+
+/// Provider for ContractNotificationScheduler
+final contractNotificationSchedulerProvider =
+    Provider<ContractNotificationScheduler>((ref) {
+      final notificationService = ref.watch(notificationServiceProvider);
+      return ContractNotificationScheduler(
+        notificationService: notificationService,
+      );
     });

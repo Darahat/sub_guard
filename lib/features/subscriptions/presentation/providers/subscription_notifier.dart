@@ -1,7 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/currency/currency_converter.dart';
+import '../../../../core/services/csv_service.dart';
+import '../../../../core/services/home_widget_service.dart';
+import '../../../budget/domain/services/budget_calculator.dart';
+import '../../../notifications/domain/services/contract_notification_scheduler.dart';
 import '../../../notifications/domain/usecases/notification_usecases.dart';
 import '../../../notifications/presentation/providers/notification_providers.dart';
+import '../../domain/entities/price_history.dart';
 import '../../domain/entities/subscription_entity.dart';
 import '../../domain/usecases/add_subscription_usecase.dart';
 import '../../domain/usecases/cancel_subscription_usecase.dart';
@@ -134,8 +140,27 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
           totalMonthlySpending: monthlyTotal,
           totalYearlySpending: yearlyTotal,
         );
+
+        _syncHomeWidgets(subscriptions);
       },
     );
+  }
+
+  void _syncHomeWidgets(List<SubscriptionEntity> subscriptions) {
+    try {
+      final converter = CurrencyConverter();
+      final budget = BudgetCalculator.evaluate(
+        subscriptions: subscriptions,
+        budgetLimit: null,
+        primaryCurrency: 'USD',
+        converter: converter,
+      );
+      HomeWidgetService.updateWidgets(
+        subscriptions: subscriptions,
+        budget: budget,
+        primaryCurrency: 'USD',
+      );
+    } catch (_) {}
   }
 
   /// Add new subscription
@@ -219,6 +244,7 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
       (_) async {
         // Cancel all notifications for this subscription
         await cancelNotificationsBySubscriptionUseCase(id);
+        await ContractNotificationScheduler().cancelContractReminders(id);
 
         state = state.copyWith(
           isLoading: false,
@@ -244,7 +270,8 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
         isLoading: false,
         errorMessage: failure.message,
       ),
-      (cancelled) {
+      (cancelled) async {
+        await ContractNotificationScheduler().cancelContractReminders(id);
         state = state.copyWith(
           isLoading: false,
           successMessage: 'Subscription cancelled successfully!',
@@ -287,15 +314,18 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     state = state.copyWith(clearSuccess: true);
   }
 
-  /// Export all subscriptions to CSV and trigger share
-  Future<void> exportCsv() async {
+  /// Export all subscriptions to Excel (.xlsx) or CSV (.csv) and trigger share
+  Future<void> exportData({ExportFormat format = ExportFormat.excel}) async {
     if (state.subscriptions.isEmpty) {
       state = state.copyWith(errorMessage: 'No subscriptions to export.');
       return;
     }
 
     state = state.copyWith(isLoading: true);
-    final result = await exportSubscriptionsCsvUseCase.execute(state.subscriptions);
+    final result = await exportSubscriptionsCsvUseCase.execute(
+      state.subscriptions,
+      format: format,
+    );
 
     result.fold(
       (failure) => state = state.copyWith(
@@ -304,15 +334,22 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
       ),
       (filePath) => state = state.copyWith(
         isLoading: false,
-        successMessage: 'CSV exported successfully!',
+        successMessage:
+            '${format == ExportFormat.excel ? "Excel spreadsheet" : "CSV file"} exported successfully!',
       ),
     );
   }
 
-  /// Pick and import subscriptions from CSV file
-  Future<void> importCsv({required String userId}) async {
+  /// Backward-compatible alias
+  Future<void> exportCsv() => exportData(format: ExportFormat.excel);
+
+  /// Pick and import subscriptions from Excel (.xlsx, .xls) or CSV (.csv) file
+  Future<void> importData({required String userId, bool isPro = false}) async {
     state = state.copyWith(isLoading: true);
-    final result = await importSubscriptionsCsvUseCase.execute(userId: userId);
+    final result = await importSubscriptionsCsvUseCase.execute(
+      userId: userId,
+      isPro: isPro,
+    );
 
     result.fold(
       (failure) => state = state.copyWith(
@@ -331,7 +368,7 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
             isLoading: false,
             errorMessage: importResult.errorMessages.isNotEmpty
                 ? importResult.errorMessages.first
-                : 'No valid subscriptions could be imported from CSV.',
+                : 'No valid subscriptions could be imported from the selected file.',
           );
         } else {
           state = state.copyWith(
@@ -345,6 +382,50 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
         }
       },
     );
+  }
+
+  /// Backward-compatible alias
+  Future<void> importCsv({required String userId, bool isPro = false}) =>
+      importData(userId: userId, isPro: isPro);
+
+  /// Confirm renewal of a subscription and advance its billing date past today
+  Future<void> confirmRenewal({
+    required SubscriptionEntity subscription,
+    double? newAmount,
+    PriceChangeReason? priceChangeReason,
+  }) async {
+    final now = DateTime.now();
+    final nextDate = subscription.calculateNextFutureBillingDate(now);
+
+    final updated = subscription.copyWith(
+      nextBillingDate: nextDate,
+      amount: newAmount ?? subscription.amount,
+      lastRenewalConfirmedAt: now,
+      lastReviewedAt: now,
+      status: SubscriptionStatus.active,
+    );
+
+    await updateSubscription(updated);
+  }
+
+  /// Mark subscription as did not renew / cancelled from confirmation prompt
+  Future<void> markDidNotRenew(SubscriptionEntity subscription) async {
+    final now = DateTime.now();
+    final updated = subscription.copyWith(
+      status: SubscriptionStatus.cancelled,
+      cancelledAt: now,
+      cancelledDate: now,
+      cancellationDate: now,
+      lastReviewedAt: now,
+    );
+
+    await updateSubscription(updated);
+  }
+
+  /// Record user review of subscription health
+  Future<void> markReviewed(SubscriptionEntity subscription) async {
+    final updated = subscription.copyWith(lastReviewedAt: DateTime.now());
+    await updateSubscription(updated);
   }
 
   /// Schedule notifications for a subscription
@@ -366,6 +447,11 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
             daysBeforeRenewal: days,
           );
         }
+
+        // Schedule contract cancellation deadline shield reminders if applicable
+        await ContractNotificationScheduler().scheduleContractReminders(
+          subscription,
+        );
       },
     );
   }

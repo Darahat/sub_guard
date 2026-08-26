@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_overview_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="14dp"
+    android:background="@drawable/widget_background">
+
+    <!-- Header & Budget Badge -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_overview_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="MONTHLY BUDGET"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="#4338CA" />
+
+        <TextView
+            android:id="@+id/widget_overview_health_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="On Track"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:textColor="#15803D"
+            android:background="@drawable/widget_badge_green"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp" />
+    </LinearLayout>
+
+    <!-- Monthly Spending Big Number -->
+    <TextView
+        android:id="@+id/widget_overview_spending"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="$0.00 / mo"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#1F2937" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:background="#E5E7EB" />
+
+    <!-- Upcoming List Item 1 -->
+    <LinearLayout
+        android:id="@+id/widget_sub1_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_sub1_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="No upcoming renewals"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#374151"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/widget_sub1_due"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="—"
+            android:textSize="11sp"
+            android:textColor="#6B7280"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/widget_sub1_amount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#4F46E5" />
+    </LinearLayout>
+
+    <!-- Upcoming List Item 2 -->
+    <LinearLayout
+        android:id="@+id/widget_sub2_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_sub2_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text=""
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#374151"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/widget_sub2_due"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="11sp"
+            android:textColor="#6B7280"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/widget_sub2_amount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#4F46E5" />
+    </LinearLayout>
+</LinearLayout>
+

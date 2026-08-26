@@ -241,7 +241,7 @@ class RemoteSubscriptionDataSourceImpl implements RemoteSubscriptionDataSource {
   ) {
     final data = doc.data()!;
 
-    return SubscriptionModel()
+    return SubscriptionModel.empty()
       ..subscriptionId = data['subscriptionId'] as String
       ..userId = data['userId'] as String? ?? ''
       ..serviceName = data['serviceName'] as String

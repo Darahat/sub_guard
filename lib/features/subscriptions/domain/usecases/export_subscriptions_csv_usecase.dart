@@ -11,16 +11,22 @@ class ExportSubscriptionsCsvUseCase {
   ExportSubscriptionsCsvUseCase(this.csvService);
 
   Future<Either<Failure, String?>> execute(
-    List<SubscriptionEntity> subscriptions,
-  ) async {
+    List<SubscriptionEntity> subscriptions, {
+    ExportFormat format = ExportFormat.excel,
+  }) async {
     try {
       if (subscriptions.isEmpty) {
-        return const Left(ValidationFailure('No subscriptions available to export.'));
+        return const Left(
+          ValidationFailure('No subscriptions available to export.'),
+        );
       }
-      final filePath = await csvService.exportAndShare(subscriptions);
+      final filePath = await csvService.exportAndShare(
+        subscriptions,
+        format: format,
+      );
       return Right(filePath);
     } catch (e) {
-      return Left(ServerFailure('Failed to export CSV: ${e.toString()}'));
+      return Left(ServerFailure('Failed to export data: ${e.toString()}'));
     }
   }
 }

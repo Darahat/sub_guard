@@ -54,11 +54,6 @@ class BiometricService {
 
       return await _localAuth.authenticate(
         localizedReason: localizedReason,
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: false, // Allows device PIN/Passcode fallback
-          useErrorDialogs: true,
-        ),
       );
     } on PlatformException catch (e) {
       logger.error('Authentication error: ${e.message} (code: ${e.code})');

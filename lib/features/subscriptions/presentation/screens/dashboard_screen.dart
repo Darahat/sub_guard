@@ -1,15 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/preset_catalog.dart';
 import '../../../../core/sync/sync_service.dart';
 import '../../../../core/sync/sync_status.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_notifier.dart';
+import '../../../budget/presentation/widgets/budget_progress_card.dart';
+import '../../../monetization/presentation/providers/purchase_notifier.dart';
+import '../../../monetization/presentation/widgets/paywall_bottom_sheet.dart';
+import '../../../payment_methods/presentation/widgets/payment_shield_card.dart';
 import '../../domain/entities/subscription_entity.dart';
 import '../providers/subscription_notifier.dart';
+import '../widgets/contract_shield_card.dart';
+import '../widgets/price_hike_alert_card.dart';
+import '../widgets/renewal_confirmation_card.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/subscription_card.dart';
+import '../widgets/subscription_health_card.dart';
+
+enum SubscriptionSortOption {
+  nextBillingDate('Next Renewal'),
+  priceHighToLow('Price: High to Low'),
+  priceLowToHigh('Price: Low to High'),
+  nameAZ('Name (A-Z)');
+
+  final String label;
+  const SubscriptionSortOption(this.label);
+}
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -20,7 +40,9 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   final _searchController = TextEditingController();
-  // _selectedStatus removed - using state management instead
+  String _selectedCategory = 'All';
+  SubscriptionStatus? _selectedStatus;
+  SubscriptionSortOption _sortOption = SubscriptionSortOption.nextBillingDate;
 
   @override
   void dispose() {
@@ -60,14 +82,70 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return const SizedBox.shrink();
       },
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
     );
+  }
+
+  List<SubscriptionEntity> _getFilteredAndSortedSubscriptions(
+    List<SubscriptionEntity> allSubscriptions,
+  ) {
+    var filtered = List<SubscriptionEntity>.from(allSubscriptions);
+
+    // 1. Text Search Filter
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      filtered = filtered.where((s) {
+        return s.serviceName.toLowerCase().contains(query) ||
+            (s.category?.toLowerCase().contains(query) ?? false) ||
+            (s.description?.toLowerCase().contains(query) ?? false);
+      }).toList();
+    }
+
+    // 2. Category Filter
+    if (_selectedCategory != 'All') {
+      filtered = filtered.where((s) {
+        return (s.category ?? 'Other').toLowerCase() ==
+            _selectedCategory.toLowerCase();
+      }).toList();
+    }
+
+    // 3. Status Filter
+    if (_selectedStatus != null) {
+      filtered = filtered.where((s) => s.status == _selectedStatus).toList();
+    }
+
+    // 4. Sorting
+    switch (_sortOption) {
+      case SubscriptionSortOption.nextBillingDate:
+        filtered.sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
+        break;
+      case SubscriptionSortOption.priceHighToLow:
+        filtered.sort((a, b) => b.monthlyCost.compareTo(a.monthlyCost));
+        break;
+      case SubscriptionSortOption.priceLowToHigh:
+        filtered.sort((a, b) => a.monthlyCost.compareTo(b.monthlyCost));
+        break;
+      case SubscriptionSortOption.nameAZ:
+        filtered.sort(
+          (a, b) => a.serviceName.toLowerCase().compareTo(
+            b.serviceName.toLowerCase(),
+          ),
+        );
+        break;
+    }
+
+    return filtered;
   }
 
   @override
   Widget build(BuildContext context) {
     final subscriptionState = ref.watch(subscriptionNotifierProvider);
     final authState = ref.watch(authNotifierProvider);
+
+    // Filter and sort the subscriptions
+    final visibleSubscriptions = _getFilteredAndSortedSubscriptions(
+      subscriptionState.subscriptions,
+    );
 
     // Listen for messages
     ref.listen<SubscriptionState>(subscriptionNotifierProvider, (
@@ -101,11 +179,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           _buildSyncStatusIcon(),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Notification Settings',
             onPressed: () => context.push('/notifications'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -190,7 +265,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                   ),
 
-                  // Search & Filter
+                  // 0. Monthly Spending Budget & Overspend Guard (Phase 11)
+                  const SliverToBoxAdapter(child: BudgetProgressCard()),
+
+                  // 1. Post-Billing Renewal Check-in Card (Phase 10)
+                  const SliverToBoxAdapter(child: RenewalConfirmationCard()),
+
+                  // 1.5. Annual Contract & Auto-Renew Lock-in Shield (Phase 14)
+                  const SliverToBoxAdapter(child: ContractShieldCard()),
+
+                  // 1.6. Payment Method & Card Expiry Shield (Phase 15)
+                  const SliverToBoxAdapter(child: PaymentShieldCard()),
+
+                  // 1.7. Price Hike & Unexpected Increase Anomaly Alert (Phase 16)
+                  const SliverToBoxAdapter(child: PriceHikeAlertCard()),
+
+                  // 2. Subscription Health & Potentially Unused Audit Card (Phase 10)
+                  const SliverToBoxAdapter(child: SubscriptionHealthCard()),
+
+                  // Search & Filter Actions Row
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -207,12 +300,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                         icon: const Icon(Icons.clear),
                                         onPressed: () {
                                           _searchController.clear();
-                                          ref
-                                              .read(
-                                                subscriptionNotifierProvider
-                                                    .notifier,
-                                              )
-                                              .loadSubscriptions();
+                                          setState(() {});
                                         },
                                       )
                                     : null,
@@ -225,75 +313,305 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 ),
                               ),
                               onChanged: (value) {
-                                ref
-                                    .read(subscriptionNotifierProvider.notifier)
-                                    .searchSubscriptions(value);
+                                setState(() {});
                               },
                             ),
                           ),
                           const SizedBox(width: 8),
+
+                          // Sort Menu Button
+                          PopupMenuButton<SubscriptionSortOption>(
+                            icon: const Icon(Icons.sort),
+                            tooltip: 'Sort By',
+                            onSelected: (option) {
+                              HapticFeedback.selectionClick();
+                              setState(() => _sortOption = option);
+                            },
+                            itemBuilder: (context) =>
+                                SubscriptionSortOption.values.map((option) {
+                                  return PopupMenuItem(
+                                    value: option,
+                                    child: Row(
+                                      children: [
+                                        if (_sortOption == option)
+                                          const Icon(
+                                            Icons.check,
+                                            size: 18,
+                                            color: AppColors.primary,
+                                          )
+                                        else
+                                          const SizedBox(width: 18),
+                                        const SizedBox(width: 8),
+                                        Text(option.label),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                          ),
+
+                          // Status Filter Menu Button
                           PopupMenuButton<SubscriptionStatus?>(
-                            icon: const Icon(Icons.filter_list),
+                            icon: Icon(
+                              Icons.filter_list,
+                              color: _selectedStatus != null
+                                  ? AppColors.primary
+                                  : null,
+                            ),
+                            tooltip: 'Filter Status',
                             onSelected: (status) {
-                              // Filter is applied directly to state management
-                              if (status != null) {
-                                ref
-                                    .read(subscriptionNotifierProvider.notifier)
-                                    .filterByStatus(status);
-                              } else {
-                                ref
-                                    .read(subscriptionNotifierProvider.notifier)
-                                    .loadSubscriptions();
-                              }
+                              HapticFeedback.selectionClick();
+                              setState(() => _selectedStatus = status);
                             },
                             itemBuilder: (context) => [
-                              const PopupMenuItem(
+                              PopupMenuItem(
                                 value: null,
-                                child: Text('All'),
+                                child: Row(
+                                  children: [
+                                    if (_selectedStatus == null)
+                                      const Icon(
+                                        Icons.check,
+                                        size: 18,
+                                        color: AppColors.primary,
+                                      )
+                                    else
+                                      const SizedBox(width: 18),
+                                    const SizedBox(width: 8),
+                                    const Text('All Statuses'),
+                                  ],
+                                ),
                               ),
-                              const PopupMenuItem(
-                                value: SubscriptionStatus.active,
-                                child: Text('Active'),
-                              ),
-                              const PopupMenuItem(
-                                value: SubscriptionStatus.paused,
-                                child: Text('Paused'),
-                              ),
-                              const PopupMenuItem(
-                                value: SubscriptionStatus.cancelled,
-                                child: Text('Cancelled'),
-                              ),
+                              ...SubscriptionStatus.values.map((status) {
+                                final isSelected = _selectedStatus == status;
+                                return PopupMenuItem(
+                                  value: status,
+                                  child: Row(
+                                    children: [
+                                      if (isSelected)
+                                        const Icon(
+                                          Icons.check,
+                                          size: 18,
+                                          color: AppColors.primary,
+                                        )
+                                      else
+                                        const SizedBox(width: 18),
+                                      const SizedBox(width: 8),
+                                      Text(status.name.toUpperCase()),
+                                    ],
+                                  ),
+                                );
+                              }),
                             ],
                           ),
                         ],
                       ),
                     ),
                   ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-                  // Subscriptions List
+                  // Horizontal Category Filter Pills
+                  SliverToBoxAdapter(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: {...PresetCatalog.categories, 'Other'}.map((
+                          cat,
+                        ) {
+                          final isSelected = _selectedCategory == cat;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: FilterChip(
+                              selected: isSelected,
+                              label: Text(cat),
+                              selectedColor: AppColors.primary.withValues(
+                                alpha: 0.15,
+                              ),
+                              checkmarkColor: AppColors.primary,
+                              labelStyle: TextStyle(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w500,
+                                fontSize: 13,
+                              ),
+                              onSelected: (_) {
+                                HapticFeedback.selectionClick();
+                                setState(() => _selectedCategory = cat);
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 6)),
+
+                  // Subscriptions List or Empty State
                   if (subscriptionState.subscriptions.isEmpty)
-                    SliverFillRemaining(
-                      child: Center(
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.grey.withValues(alpha: 0.15),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.03),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.08,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.shield_outlined,
+                                  size: 48,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Welcome to SubGuard',
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Never get surprised by unexpected renewal charges again.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              const Divider(height: 1),
+                              const SizedBox(height: 16),
+                              Text(
+                                'POPULAR SERVICES',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade500,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                alignment: WrapAlignment.center,
+                                children:
+                                    [
+                                      'Netflix',
+                                      'Spotify',
+                                      'ChatGPT',
+                                      'Apple One',
+                                      'YouTube',
+                                      'Amazon Prime',
+                                    ].map((name) {
+                                      return ActionChip(
+                                        avatar: const Icon(Icons.add, size: 16),
+                                        label: Text(name),
+                                        backgroundColor: AppColors.primary
+                                            .withValues(alpha: 0.06),
+                                        labelStyle: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                        ),
+                                        onPressed: () {
+                                          HapticFeedback.selectionClick();
+                                          final isPro = ref
+                                              .read(purchaseNotifierProvider)
+                                              .isPro;
+                                          final activeCount = ref
+                                              .read(
+                                                subscriptionNotifierProvider,
+                                              )
+                                              .activeSubscriptionCount;
+
+                                          if (!isPro && activeCount >= 5) {
+                                            showModalBottomSheet(
+                                              context: context,
+                                              isScrollControlled: true,
+                                              backgroundColor:
+                                                  Colors.transparent,
+                                              builder: (_) =>
+                                                  const PaywallBottomSheet(),
+                                            );
+                                            return;
+                                          }
+                                          context.push('/subscriptions/add');
+                                        },
+                                      );
+                                    }).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (visibleSubscriptions.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 32,
+                        ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.subscriptions_outlined,
-                              size: 80,
-                              color: AppColors.textSecondary,
+                              Icons.search_off,
+                              size: 48,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'No matching subscriptions',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Try adjusting your search query or category filter.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 13,
+                              ),
                             ),
                             const SizedBox(height: 16),
-                            Text(
-                              'No subscriptions yet',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(color: AppColors.textSecondary),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Tap + to add your first subscription',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: AppColors.textSecondary),
+                            OutlinedButton(
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _selectedCategory = 'All';
+                                  _selectedStatus = null;
+                                });
+                              },
+                              child: const Text('Reset Filters'),
                             ),
                           ],
                         ),
@@ -304,8 +622,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate((context, index) {
-                          final subscription =
-                              subscriptionState.subscriptions[index];
+                          final subscription = visibleSubscriptions[index];
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: SubscriptionCard(
@@ -315,7 +632,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               ),
                             ),
                           );
-                        }, childCount: subscriptionState.subscriptions.length),
+                        }, childCount: visibleSubscriptions.length),
                       ),
                     ),
 
@@ -325,7 +642,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/subscriptions/add'),
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          final isPro = ref.read(purchaseNotifierProvider).isPro;
+          final activeCount = ref
+              .read(subscriptionNotifierProvider)
+              .activeSubscriptionCount;
+
+          if (!isPro && activeCount >= 5) {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => const PaywallBottomSheet(),
+            );
+            return;
+          }
+
+          context.push('/subscriptions/add');
+        },
         icon: const Icon(Icons.add),
         label: const Text('Add Subscription'),
       ),

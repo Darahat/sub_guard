@@ -1,9 +1,10 @@
-import 'package:isar/isar.dart';
+import 'dart:convert';
+import 'package:hive_ce/hive.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../models/notification_model.dart';
 
-/// Local data source for notifications using Isar
+/// Local data source for notifications using Hive
 abstract class LocalNotificationDataSource {
   /// Get all notifications
   Future<List<NotificationModel>> getAllNotifications();
@@ -45,14 +46,23 @@ abstract class LocalNotificationDataSource {
 }
 
 class LocalNotificationDataSourceImpl implements LocalNotificationDataSource {
-  final Isar _isar;
+  final Box<String> notificationsBox;
+  final Box<String> settingsBox;
 
-  LocalNotificationDataSourceImpl(this._isar);
+  LocalNotificationDataSourceImpl({
+    required this.notificationsBox,
+    required this.settingsBox,
+  });
+
+  static const String _settingsKey = 'notification_settings_key';
 
   @override
   Future<List<NotificationModel>> getAllNotifications() async {
     try {
-      return await _isar.notificationModels.where().findAll();
+      return notificationsBox.values
+          .map((str) => NotificationModel.fromJson(
+              json.decode(str) as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       throw CacheException('Failed to get notifications: $e');
     }
@@ -63,10 +73,8 @@ class LocalNotificationDataSourceImpl implements LocalNotificationDataSource {
     String subscriptionId,
   ) async {
     try {
-      return await _isar.notificationModels
-          .filter()
-          .subscriptionIdEqualTo(subscriptionId)
-          .findAll();
+      final all = await getAllNotifications();
+      return all.where((n) => n.subscriptionId == subscriptionId).toList();
     } catch (e) {
       throw CacheException('Failed to get notifications by subscription: $e');
     }
@@ -75,12 +83,8 @@ class LocalNotificationDataSourceImpl implements LocalNotificationDataSource {
   @override
   Future<List<NotificationModel>> getPendingNotifications() async {
     try {
-      return await _isar.notificationModels
-          .filter()
-          .deliveredAtIsNull()
-          .and()
-          .isCancelledEqualTo(false)
-          .findAll();
+      final all = await getAllNotifications();
+      return all.where((n) => n.deliveredAt == null && !n.isCancelled).toList();
     } catch (e) {
       throw CacheException('Failed to get pending notifications: $e');
     }
@@ -89,10 +93,10 @@ class LocalNotificationDataSourceImpl implements LocalNotificationDataSource {
   @override
   Future<NotificationModel?> getNotificationById(String notificationId) async {
     try {
-      return await _isar.notificationModels
-          .filter()
-          .notificationIdEqualTo(notificationId)
-          .findFirst();
+      final jsonStr = notificationsBox.get(notificationId);
+      if (jsonStr == null) return null;
+      return NotificationModel.fromJson(
+          json.decode(jsonStr) as Map<String, dynamic>);
     } catch (e) {
       throw CacheException('Failed to get notification by ID: $e');
     }
@@ -101,9 +105,10 @@ class LocalNotificationDataSourceImpl implements LocalNotificationDataSource {
   @override
   Future<void> addNotification(NotificationModel notification) async {
     try {
-      await _isar.writeTxn(() async {
-        await _isar.notificationModels.put(notification);
-      });
+      await notificationsBox.put(
+        notification.notificationId,
+        json.encode(notification.toJson()),
+      );
     } catch (e) {
       throw CacheException('Failed to add notification: $e');
     }
@@ -112,9 +117,10 @@ class LocalNotificationDataSourceImpl implements LocalNotificationDataSource {
   @override
   Future<void> updateNotification(NotificationModel notification) async {
     try {
-      await _isar.writeTxn(() async {
-        await _isar.notificationModels.put(notification);
-      });
+      await notificationsBox.put(
+        notification.notificationId,
+        json.encode(notification.toJson()),
+      );
     } catch (e) {
       throw CacheException('Failed to update notification: $e');
     }
@@ -123,16 +129,7 @@ class LocalNotificationDataSourceImpl implements LocalNotificationDataSource {
   @override
   Future<void> deleteNotification(String notificationId) async {
     try {
-      await _isar.writeTxn(() async {
-        final notification = await _isar.notificationModels
-            .filter()
-            .notificationIdEqualTo(notificationId)
-            .findFirst();
-
-        if (notification != null) {
-          await _isar.notificationModels.delete(notification.id);
-        }
-      });
+      await notificationsBox.delete(notificationId);
     } catch (e) {
       throw CacheException('Failed to delete notification: $e');
     }
@@ -143,15 +140,12 @@ class LocalNotificationDataSourceImpl implements LocalNotificationDataSource {
     String subscriptionId,
   ) async {
     try {
-      await _isar.writeTxn(() async {
-        final notifications = await _isar.notificationModels
-            .filter()
-            .subscriptionIdEqualTo(subscriptionId)
-            .findAll();
-
-        final ids = notifications.map((n) => n.id).toList();
-        await _isar.notificationModels.deleteAll(ids);
-      });
+      final all = await getAllNotifications();
+      for (final n in all) {
+        if (n.subscriptionId == subscriptionId) {
+          await notificationsBox.delete(n.notificationId);
+        }
+      }
     } catch (e) {
       throw CacheException(
         'Failed to delete notifications by subscription: $e',
@@ -162,17 +156,11 @@ class LocalNotificationDataSourceImpl implements LocalNotificationDataSource {
   @override
   Future<void> markAsDelivered(String notificationId) async {
     try {
-      await _isar.writeTxn(() async {
-        final notification = await _isar.notificationModels
-            .filter()
-            .notificationIdEqualTo(notificationId)
-            .findFirst();
-
-        if (notification != null) {
-          notification.deliveredAt = DateTime.now();
-          await _isar.notificationModels.put(notification);
-        }
-      });
+      final notification = await getNotificationById(notificationId);
+      if (notification != null) {
+        notification.deliveredAt = DateTime.now();
+        await updateNotification(notification);
+      }
     } catch (e) {
       throw CacheException('Failed to mark notification as delivered: $e');
     }
@@ -181,17 +169,11 @@ class LocalNotificationDataSourceImpl implements LocalNotificationDataSource {
   @override
   Future<void> markAsCancelled(String notificationId) async {
     try {
-      await _isar.writeTxn(() async {
-        final notification = await _isar.notificationModels
-            .filter()
-            .notificationIdEqualTo(notificationId)
-            .findFirst();
-
-        if (notification != null) {
-          notification.isCancelled = true;
-          await _isar.notificationModels.put(notification);
-        }
-      });
+      final notification = await getNotificationById(notificationId);
+      if (notification != null) {
+        notification.isCancelled = true;
+        await updateNotification(notification);
+      }
     } catch (e) {
       throw CacheException('Failed to mark notification as cancelled: $e');
     }
@@ -200,12 +182,14 @@ class LocalNotificationDataSourceImpl implements LocalNotificationDataSource {
   @override
   Future<NotificationSettingsModel> getSettings() async {
     try {
-      final settings = await _isar.notificationSettingsModels
-          .where()
-          .findFirst();
-
-      // Return existing settings or create defaults
-      return settings ?? NotificationSettingsModel.defaults();
+      final jsonStr = settingsBox.get(_settingsKey);
+      if (jsonStr == null) {
+        final def = NotificationSettingsModel.defaults();
+        await updateSettings(def);
+        return def;
+      }
+      return NotificationSettingsModel.fromJson(
+          json.decode(jsonStr) as Map<String, dynamic>);
     } catch (e) {
       throw CacheException('Failed to get notification settings: $e');
     }
@@ -215,14 +199,10 @@ class LocalNotificationDataSourceImpl implements LocalNotificationDataSource {
   Future<void> updateSettings(NotificationSettingsModel settings) async {
     try {
       settings.updatedAt = DateTime.now();
-
-      await _isar.writeTxn(() async {
-        // Delete old settings
-        await _isar.notificationSettingsModels.clear();
-
-        // Add new settings
-        await _isar.notificationSettingsModels.put(settings);
-      });
+      await settingsBox.put(
+        _settingsKey,
+        json.encode(settings.toJson()),
+      );
     } catch (e) {
       throw CacheException('Failed to update notification settings: $e');
     }

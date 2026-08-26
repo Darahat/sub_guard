@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../analytics/presentation/widgets/opportunity_cost_card.dart';
+import '../../../analytics/presentation/widgets/savings_opportunity_card.dart';
+import '../../../analytics/presentation/widgets/spending_projection_card.dart';
+import '../../../analytics/presentation/widgets/top_cost_services_card.dart';
+import '../../../monetization/presentation/providers/purchase_notifier.dart';
+import '../../../monetization/presentation/widgets/paywall_bottom_sheet.dart';
+import '../../../subscriptions/presentation/providers/subscription_notifier.dart';
 import '../../domain/entities/insight_entity.dart';
 import '../providers/insight_notifier.dart';
 import '../widgets/category_pie_chart.dart';
@@ -23,7 +31,15 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        HapticFeedback.selectionClick();
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(insightNotifierProvider.notifier).refresh();
+    });
   }
 
   @override
@@ -34,15 +50,20 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(subscriptionNotifierProvider, (previous, next) {
+      ref.read(insightNotifierProvider.notifier).refresh();
+    });
+
     final insightState = ref.watch(insightNotifierProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Insights'),
+        title: const Text('Spending Analytics'),
         actions: [
           PopupMenuButton<InsightDateRange>(
-            icon: const Icon(Icons.date_range),
+            icon: const Icon(Icons.calendar_month_outlined),
             onSelected: (range) {
+              HapticFeedback.selectionClick();
               ref.read(insightNotifierProvider.notifier).changeDateRange(range);
             },
             itemBuilder: (context) => InsightDateRange.values.map((range) {
@@ -51,7 +72,11 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
                 child: Row(
                   children: [
                     if (range == insightState.dateRange)
-                      const Icon(Icons.check, size: 16)
+                      const Icon(
+                        Icons.check,
+                        size: 16,
+                        color: AppColors.primary,
+                      )
                     else
                       const SizedBox(width: 16),
                     const SizedBox(width: 8),
@@ -64,6 +89,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
+              HapticFeedback.lightImpact();
               ref.read(insightNotifierProvider.notifier).refresh();
             },
           ),
@@ -71,9 +97,19 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Overview', icon: Icon(Icons.dashboard, size: 20)),
-            Tab(text: 'Trends', icon: Icon(Icons.trending_up, size: 20)),
-            Tab(text: 'Categories', icon: Icon(Icons.pie_chart, size: 20)),
+            Tab(
+              text: 'Overview',
+              icon: Icon(Icons.insights_outlined, size: 20),
+            ),
+            Tab(text: 'Outlook', icon: Icon(Icons.timeline_rounded, size: 20)),
+            Tab(
+              text: 'Trends',
+              icon: Icon(Icons.show_chart_outlined, size: 20),
+            ),
+            Tab(
+              text: 'Categories',
+              icon: Icon(Icons.pie_chart_outline, size: 20),
+            ),
           ],
         ),
       ),
@@ -92,8 +128,9 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
                   const SizedBox(height: 16),
                   Text(insightState.error!),
                   const SizedBox(height: 16),
-                  ElevatedButton(
+                  FilledButton(
                     onPressed: () {
+                      HapticFeedback.mediumImpact();
                       ref.read(insightNotifierProvider.notifier).refresh();
                     },
                     child: const Text('Retry'),
@@ -103,12 +140,14 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
             )
           : RefreshIndicator(
               onRefresh: () async {
+                HapticFeedback.mediumImpact();
                 await ref.read(insightNotifierProvider.notifier).refresh();
               },
               child: TabBarView(
                 controller: _tabController,
                 children: [
                   _buildOverviewTab(insightState),
+                  _buildOutlookTab(insightState),
                   _buildTrendsTab(insightState),
                   _buildCategoriesTab(insightState),
                 ],
@@ -127,23 +166,60 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Date Range Info
+          // 1. Proactive Watchdog Digest Card
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary.withValues(alpha: 0.08),
+                  AppColors.accent.withValues(alpha: 0.08),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.15),
+              ),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.info_outline, color: AppColors.info, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Showing data for: ${state.dateRange.label}',
-                  style: const TextStyle(
-                    color: AppColors.info,
-                    fontWeight: FontWeight.w500,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Spending Intelligence',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tracked across ${state.dateRange.label.toLowerCase()}. Projections normalized for monthly budgeting.',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -151,32 +227,50 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
           ),
           const SizedBox(height: 16),
 
-          // Stats Overview
+          // 2. Stats Overview
           StatsOverviewCard(stats: state.stats!),
           const SizedBox(height: 16),
 
-          // Top Subscriptions
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Top 5 Subscriptions',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+          // 3. Multi-Horizon Spending Outlook Preview
+          const SpendingProjectionCard(),
+          const SizedBox(height: 16),
+
+          // 4. Potential Savings Opportunities
+          const SavingsOpportunityCard(),
+          const SizedBox(height: 16),
+
+          // 5. Top Subscriptions
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Top 5 Subscriptions',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 300,
-                    child: TopSubscriptionsBar(
-                      topSubscriptions: state.topSubscriptions,
-                    ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 300,
+                  child: TopSubscriptionsBar(
+                    topSubscriptions: state.topSubscriptions,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -184,77 +278,222 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
     );
   }
 
+  Widget _buildOutlookTab(InsightState state) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: const [
+          // 1. Long-term cost projections across 1Y, 3Y, 5Y, 10Y
+          SpendingProjectionCard(),
+          SizedBox(height: 16),
+
+          // 2. Savings Opportunities linked to hygiene/unused audits
+          SavingsOpportunityCard(),
+          SizedBox(height: 16),
+
+          // 3. Interactive Compound Growth Opportunity Cost Simulator
+          OpportunityCostCard(),
+          SizedBox(height: 16),
+
+          // 4. Top 5-Year Lifetime Cost Leaders
+          TopCostServicesCard(),
+          SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTrendsTab(InsightState state) {
+    final isPro = ref.watch(purchaseNotifierProvider).isPro;
+
+    if (!isPro) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Stack(
+          children: [
+            Opacity(opacity: 0.15, child: _buildTrendsContent(state)),
+            Positioned.fill(
+              child: Center(
+                child: Container(
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.95),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.2),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.lock_outline,
+                          color: AppColors.primary,
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Spending Trends & Forecasts',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Unlock multi-month spending curves, cost trajectory analysis, and forecasting with SubGuard Pro.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      FilledButton.icon(
+                        onPressed: () {
+                          HapticFeedback.mediumImpact();
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => const PaywallBottomSheet(),
+                          );
+                        },
+                        icon: const Icon(Icons.workspace_premium, size: 18),
+                        label: const Text('Unlock Pro Insights'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return _buildTrendsContent(state);
+  }
+
+  Widget _buildTrendsContent(InsightState state) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Spending Trends',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Spending Trends',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
-                      Text(
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
                         state.dateRange.label,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                           color: AppColors.textSecondary,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 300,
-                    child: SpendingTrendChart(dataPoints: state.spendingTrends),
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 300,
+                  child: SpendingTrendChart(dataPoints: state.spendingTrends),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
 
           // Summary Stats
           if (state.spendingTrends.isNotEmpty)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Trend Summary',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Trend Summary',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(height: 12),
-                    _buildSummaryRow(
-                      'Highest Month',
-                      '\$${state.spendingTrends.map((d) => d.amount).reduce((a, b) => a > b ? a : b).toStringAsFixed(2)}',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildSummaryRow(
-                      'Lowest Month',
-                      '\$${state.spendingTrends.map((d) => d.amount).reduce((a, b) => a < b ? a : b).toStringAsFixed(2)}',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildSummaryRow(
-                      'Average',
-                      '\$${(state.spendingTrends.map((d) => d.amount).reduce((a, b) => a + b) / state.spendingTrends.length).toStringAsFixed(2)}',
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 14),
+                  _buildSummaryRow(
+                    'Highest Month',
+                    '\$${state.spendingTrends.map((d) => d.amount).reduce((a, b) => a > b ? a : b).toStringAsFixed(2)}',
+                  ),
+                  const Divider(height: 16),
+                  _buildSummaryRow(
+                    'Lowest Month',
+                    '\$${state.spendingTrends.map((d) => d.amount).reduce((a, b) => a < b ? a : b).toStringAsFixed(2)}',
+                  ),
+                  const Divider(height: 16),
+                  _buildSummaryRow(
+                    'Average Monthly',
+                    '\$${(state.spendingTrends.map((d) => d.amount).reduce((a, b) => a + b) / state.spendingTrends.length).toStringAsFixed(2)}',
+                  ),
+                ],
               ),
             ),
         ],
@@ -268,82 +507,82 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Spending by Category',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Spending by Category',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 350,
-                    child: CategoryPieChart(
-                      categories: state.categoryBreakdown,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 350,
+                  child: CategoryPieChart(categories: state.categoryBreakdown),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
 
           // Category List
           if (state.categoryBreakdown.isNotEmpty)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Category Breakdown',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Category Breakdown',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(height: 12),
-                    ...state.categoryBreakdown.map((category) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    category.category,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${category.subscriptionCount} subscription${category.subscriptionCount != 1 ? 's' : ''}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                  ),
+                  const SizedBox(height: 14),
+                  ...state.categoryBreakdown.map((category) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '\$${category.amount.toStringAsFixed(2)}',
+                                  category.category,
                                   style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                                 Text(
-                                  '${category.percentage.toStringAsFixed(1)}%',
+                                  '${category.subscriptionCount} subscription${category.subscriptionCount != 1 ? 's' : ''}',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: AppColors.textSecondary,
@@ -351,12 +590,30 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                      );
-                    }),
-                  ],
-                ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '\$${category.amount.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '${category.percentage.toStringAsFixed(1)}%',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
               ),
             ),
         ],

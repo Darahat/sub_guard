@@ -1,6 +1,4 @@
-import 'package:isar/isar.dart';
-import 'package:path_provider/path_provider.dart';
-
+import '../database/hive_service.dart';
 import '../utils/logger.dart';
 
 class StorageService {
@@ -8,48 +6,28 @@ class StorageService {
   factory StorageService() => _instance;
   StorageService._internal();
 
-  Isar? _isar;
-
-  // Initialize Isar database
-  Future<void> init(List<CollectionSchema> schemas) async {
+  /// Initialize database
+  Future<void> init() async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      _isar = await Isar.open(
-        schemas,
-        directory: dir.path,
-        name: 'subguard_db',
-      );
-      logger.info('Isar database initialized');
+      await hiveService.init();
     } catch (e) {
-      logger.error('Failed to initialize Isar database', e);
+      logger.error('Failed to initialize database', e);
       rethrow;
     }
   }
 
-  // Get Isar instance
-  Isar get isar {
-    if (_isar == null) {
-      throw Exception('Isar not initialized. Call init() first.');
-    }
-    return _isar!;
-  }
-
-  // Close database
+  /// Close database
   Future<void> close() async {
-    await _isar?.close();
-    _isar = null;
-    logger.info('Isar database closed');
+    await hiveService.close();
   }
 
-  // Clear all data
+  /// Clear all data
   Future<void> clearAll() async {
     try {
-      await isar.writeTxn(() async {
-        await isar.clear();
-      });
-      logger.info('All Isar data cleared');
+      await hiveService.clearAll();
+      logger.info('All local data cleared');
     } catch (e) {
-      logger.error('Failed to clear Isar data', e);
+      logger.error('Failed to clear data', e);
       rethrow;
     }
   }

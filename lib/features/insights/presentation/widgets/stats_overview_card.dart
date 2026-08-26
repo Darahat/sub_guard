@@ -10,84 +10,96 @@ class StatsOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Overview',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    context,
-                    'Total',
-                    stats.totalSubscriptions.toString(),
-                    Icons.subscriptions,
-                    AppColors.primary,
-                  ),
-                ),
-                Expanded(
-                  child: _buildStatItem(
-                    context,
-                    'Active',
-                    stats.activeSubscriptions.toString(),
-                    Icons.check_circle,
-                    AppColors.success,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    context,
-                    'Paused',
-                    stats.pausedSubscriptions.toString(),
-                    Icons.pause_circle,
-                    AppColors.warning,
-                  ),
-                ),
-                Expanded(
-                  child: _buildStatItem(
-                    context,
-                    'Cancelled',
-                    stats.cancelledSubscriptions.toString(),
-                    Icons.cancel,
-                    AppColors.error,
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            _buildInfoRow(
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Overview',
+            style: Theme.of(
               context,
-              'Average Cost',
-              '\$${stats.averageSubscriptionCost.toStringAsFixed(2)}/mo',
-            ),
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              context,
-              'Highest',
-              '\$${stats.highestSubscription.toStringAsFixed(2)}/mo',
-            ),
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              context,
-              'Lowest',
-              '\$${stats.lowestSubscription.toStringAsFixed(2)}/mo',
-            ),
-          ],
-        ),
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatItem(
+                  context,
+                  'Total',
+                  stats.totalSubscriptions.toString(),
+                  Icons.subscriptions,
+                  AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatItem(
+                  context,
+                  'Active',
+                  stats.activeSubscriptions.toString(),
+                  Icons.check_circle,
+                  AppColors.success,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatItem(
+                  context,
+                  'Paused',
+                  stats.pausedSubscriptions.toString(),
+                  Icons.pause_circle,
+                  AppColors.warning,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatItem(
+                  context,
+                  'Cancelled',
+                  stats.cancelledSubscriptions.toString(),
+                  Icons.cancel,
+                  AppColors.error,
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+          _buildInfoRow(
+            context,
+            'Average Cost',
+            '\$${stats.averageSubscriptionCost.toStringAsFixed(2)}/mo',
+          ),
+          const SizedBox(height: 8),
+          _buildInfoRow(
+            context,
+            'Highest',
+            '\$${stats.highestSubscription.toStringAsFixed(2)}/mo',
+          ),
+          const SizedBox(height: 8),
+          _buildInfoRow(
+            context,
+            'Lowest',
+            '\$${stats.lowestSubscription.toStringAsFixed(2)}/mo',
+          ),
+        ],
       ),
     );
   }
@@ -103,7 +115,7 @@ class StatsOverviewCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(

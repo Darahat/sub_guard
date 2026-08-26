@@ -3,7 +3,7 @@
 **Project Name:** SubGuard  
 **Current Phase:** Production Launch Readiness  
 **Target Platform:** Android (Play Store) & iOS (App Store)  
-**Document Version:** 2.0  
+**Document Version:** 3.0  
 **Last Updated:** August 2026  
 
 ---
@@ -12,16 +12,17 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           OVERALL PROJECT PROGRESS: 96%                    │
+│                           OVERALL PROJECT PROGRESS: 100%                    │
 ├────────────────────────────┬─────────────┬──────────────────────────────────┤
 │ Module                     │ Status      │ Deliverables                     │
 ├────────────────────────────┼─────────────┼──────────────────────────────────┤
-│ Phase A: Authentication    │ 100% Done   │ Email/Pass, Google, Apple, Isar  │
+│ Phase A: Authentication    │ 100% Done   │ Email/Pass, Google, Apple, Hive  │
 │ Phase B: Subscriptions     │ 100% Done   │ CRUD, Dashboard, Filters, Cycles │
 │ Phase C: Insights          │ 100% Done   │ fl_chart Trends, Pie, Bar Charts │
 │ Phase D: Cloud Sync        │ 100% Done   │ Firestore DS, SyncService, Queue │
 │ Phase E: Notifications     │ 100% Done   │ Exact Alarms, Channels, UI       │
-│ Phase F: Monetization (IAP)│ Planned     │ RevenueCat / Google Play Billing │
+│ Phase F: Monetization (IAP)│ 100% Done   │ 5-Sub limit, PaywallBottomSheet  │
+│ Phase 9–16: Advanced Shield│ 100% Done   │ Contract, Payment, Hike Shields  │
 └────────────────────────────┴─────────────┴──────────────────────────────────┘
 ```
 
@@ -29,75 +30,35 @@
 
 ## 2. Completed Milestones Breakdown
 
-### ✅ Phase A: Authentication & Profile (100% Complete)
-* `UserEntity` with Freezed immutability & `AuthProvider` enum.
-* 8 Use Cases: SignIn, SignUp, GoogleSignIn, AppleSignIn, SignOut, ResetPassword, EmailVerification, GetCurrentUser.
-* `UserModel` Isar caching for fast offline access.
-* `FirebaseAuthDataSource` with custom Firebase exception mapping.
-* Full UI: `LoginScreen`, `SignupScreen`, `ForgotPasswordScreen`.
+### ✅ Phase 1–8: Core Foundations & Monetization (100% Complete)
+* Authentication: Email/Password, Google & Apple Sign-In, profile management.
+* Core CRUD: Full offline-first Hive persistence, 5 billing cycles.
+* Spending Analytics: Line charts, pie charts, and bar charts powered by `fl_chart`.
+* Exact Alarms: Timezone-aware reminders with 3 Android notification channels.
+* Cloud Sync: Hybrid local-first Firestore sync with conflict resolution.
+* Paywall & IAP: 5-subscription free limit guard and Pro status.
+* Data Safety: CSV & Excel import/export and Biometric App Lock (`local_auth`).
+* Preset Catalog: Curated 50+ popular services with logos.
 
-### ✅ Phase B: Core Subscription Management (100% Complete)
-* `SubscriptionEntity` with computed properties (`monthlyCost`, `yearlyCost`, `daysUntilBilling`, `isExpiringSoon`).
-* Full CRUD operations with 14 repository methods.
-* `SubscriptionModel` Isar schema with search and status indexing.
-* Full UI: `DashboardScreen` with status chips & search, `AddEditSubscriptionScreen`, `SubscriptionDetailScreen`, `SubscriptionCard`, `StatsCard`.
-
-### ✅ Phase C: Insights & Analytics (100% Complete)
-* In-memory analytical calculations from local `Isar` DB (zero server latency).
-* `SpendingDataPoint`, `CategorySpending`, `SubscriptionStats`, `TopSubscription`.
-* Full UI: `InsightsScreen` with 3 tabs (Overview, Trends, Categories) powered by `fl_chart`.
-
-### ⚙️ Phase D: Cloud Sync & Backend (80% Complete)
-* `FirebaseConfig` with Firestore persistence and Crashlytics.
-* `RemoteSubscriptionDataSource` implementing full Firestore CRUD and real-time streams (`watchSubscriptions()`).
-* `SyncService` implementing hybrid local-first sync with timestamp-based conflict resolution.
-* `SyncStatus` state model.
-* *Remaining:* Configure live Firebase project and link `SubscriptionRepositoryImpl`.
-
-### ✅ Phase E: Notifications & Exact Alarms (100% Complete)
-* `NotificationService` supporting exact alarms (`zonedSchedule`) and timezone awareness.
-* 3 Android notification channels (`subscription_reminders`, `trial_alerts`, `payment_confirmations`).
-* `NotificationEntity`, `NotificationModel`, `NotificationSettingsModel`.
-* Full UI: `NotificationSettingsScreen` with reminder day chips (1, 3, 7, 14, 30 days) and test alarm triggers.
+### ✅ Phase 9–16: Advanced Protection & Financial Intelligence (100% Complete)
+* **Phase 9**: Cancellation Vault with curated 1-tap direct cancellation links and step guides.
+* **Phase 10**: Post-billing renewal confirmation check-ins and unused subscription hygiene audit.
+* **Phase 11**: Multi-currency normalization (150+ currencies), overspend budget guard, and family cost-splitting.
+* **Phase 12**: Preset services discovery catalog with category pill filtering and 1-tap addition.
+* **Phase 13**: Long-term spending projections (1/3/5/10yr), safe opportunity cost simulation ($r=0\%$ safe), and potential savings advisor.
+* **Phase 14**: Annual contract and auto-renew lock-in shield with calendar-accurate notice period deadline alarms.
+* **Phase 15**: Non-sensitive payment methods management, card expiry shield, spend at risk aggregation, and 1-tap bulk reassignment.
+* **Phase 16**: Historical price tracking, price hike anomaly detection, portfolio spending creep calculation, and Dashboard alerts.
 
 ---
 
-## 3. Sprint Execution Plan
+## 3. Upcoming Post-MVP Enhancements
 
-```
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │                         ACTIVE SPRINT SCHEDULE                          │
-  ├─────────────────────────────────────────────────────────────────────────┤
-  │ SPRINT 1: Backend Linkage & Device Validation (Immediate - 3 Days)      │
-  │  ├── 1. Run FlutterFire configure with live Firebase project            │
-  │  ├── 2. Hook RemoteSubscriptionDataSource into SubscriptionRepoImpl     │
-  │  ├── 3. Deploy Firestore Security Rules & Indexes                       │
-  │  └── 4. Validate exact alarms on physical Android 13/14 device          │
-  │                                                                         │
-  │ SPRINT 2: Data Portability & Monetization (5 Days)                      │
-  │  ├── 1. Implement CSV Export & Import Service                           │
-  │  ├── 2. Add Biometric Lock (local_auth)                                 │
-  │  ├── 3. Integrate RevenueCat / Google Play Billing                      │
-  │  └── 4. Build Paywall BottomSheet & 5-subscription limit check          │
-  │                                                                         │
-  │ SPRINT 3: Store Submission & Release (4 Days)                           │
-  │  ├── 1. App signing (Android Keystore / iOS Certificate)                │
-  │  ├── 2. Prepare screenshots, icon, and privacy policy URL              │
-  │  ├── 3. Deploy to Google Play Internal Testing Track                    │
-  │  └── 4. Public MVP Launch                                               │
-  └─────────────────────────────────────────────────────────────────────────┘
-```
+### 📅 Phase 17: Interactive Renewal Calendar View & Schedule Heatmap
+* Visual monthly calendar grid displaying subscription brand icons on exact renewal dates.
+* Daily & weekly spending cash flow heatmap with color intensity.
+* 1-tap date selection to inspect upcoming renewals and charges for any day.
 
----
-
-## 4. Future Post-MVP Roadmap
-
-### Phase 2: User Experience Polish
-* Android Home Screen Widget (upcoming charges list).
-* Interactive Siri / Google Assistant shortcuts ("What subscriptions renew this week?").
-* Multi-currency exchange rate auto-conversion.
-
-### Phase 3: Advanced Intelligence & Discovery
-* Opt-in Gmail / Outlook receipt scanning via Serverless Cloud Function (with full Google Security Verification).
-* Price hike anomaly detection.
-* Unused subscription flags based on manual check-ins.
+### 📱 Phase 18: Android & iOS Home Screen Widgets
+* Interactive widgets displaying upcoming charges in the next 7 days.
+* Quick Add subscription action.

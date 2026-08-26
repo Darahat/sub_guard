@@ -106,7 +106,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       // Trigger Google Sign-In flow
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-        throw AuthException(message: 'Google sign-in cancelled by user');
+        throw AuthException(message: 'Google sign-in was cancelled');
       }
 
       // Obtain auth details
@@ -179,10 +179,11 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
   @override
   Future<void> signOut() async {
     try {
-      await Future.wait([_firebaseAuth.signOut(), _googleSignIn.signOut()]);
-    } catch (e) {
-      throw AuthException(message: 'Failed to sign out: ${e.toString()}');
-    }
+      await _firebaseAuth.signOut();
+    } catch (_) {}
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
   }
 
   @override

@@ -12,9 +12,13 @@ final biometricServiceProvider = Provider<BiometricService>((ref) {
 class AppLockNotifier extends StateNotifier<AppLockState> {
   final BiometricService _biometricService;
   static const int _gracePeriodSeconds = 15;
+  DateTime? _lastPausedTime;
 
-  AppLockNotifier(this._biometricService) : super(const AppLockState()) {
-    initialize();
+  AppLockNotifier(this._biometricService, {bool autoInit = true})
+      : super(const AppLockState()) {
+    if (autoInit) {
+      initialize();
+    }
   }
 
   /// Initialize lock state from hardware and secure storage
@@ -50,10 +54,11 @@ class AppLockNotifier extends StateNotifier<AppLockState> {
       );
 
       if (success) {
-        state = state.copyWith(
-          isLocked: false,
-          isAuthenticating: false,
-        );
+        // Reset pause timers and record fresh active time so resume doesn't re-lock
+        _lastPausedTime = null;
+        await _biometricService.recordLastActiveTime();
+
+        state = state.copyWith(isLocked: false, isAuthenticating: false);
         return true;
       } else {
         state = state.copyWith(
@@ -73,6 +78,7 @@ class AppLockNotifier extends StateNotifier<AppLockState> {
 
   /// Toggle Biometric Lock setting in preferences
   Future<bool> toggleAppLock(bool enable) async {
+    state = state.copyWith(isAuthenticating: true);
     // Require biometric confirmation before enabling or disabling
     final authenticated = await _biometricService.authenticate(
       localizedReason: enable
@@ -80,37 +86,54 @@ class AppLockNotifier extends StateNotifier<AppLockState> {
           : 'Authenticate to disable ${state.biometricName} lock',
     );
 
+    state = state.copyWith(isAuthenticating: false);
+
     if (!authenticated) {
       return false;
     }
 
     await _biometricService.setAppLockEnabled(enable);
-    state = state.copyWith(
-      isEnabled: enable,
-      isLocked: false,
-    );
+    _lastPausedTime = null;
+    await _biometricService.recordLastActiveTime();
+
+    state = state.copyWith(isEnabled: enable, isLocked: false);
     return true;
   }
 
   /// Called when the app enters background
   Future<void> onAppPaused() async {
-    if (state.isEnabled) {
-      await _biometricService.recordLastActiveTime();
+    // Ignore pause events triggered by the biometric prompt dialog itself
+    if (!state.isEnabled || state.isAuthenticating) {
+      return;
     }
+    _lastPausedTime = DateTime.now();
+    await _biometricService.recordLastActiveTime();
   }
 
   /// Called when the app returns to foreground
   Future<void> onAppResumed() async {
-    if (!state.isEnabled || state.isLocked) {
+    // Ignore resume events if disabled, currently authenticating, or already locked
+    if (!state.isEnabled || state.isAuthenticating || state.isLocked) {
       return;
     }
 
-    final lastActive = await _biometricService.getLastActiveTime();
-    if (lastActive != null) {
-      final elapsedSeconds = DateTime.now().difference(lastActive).inSeconds;
+    final pauseTime = _lastPausedTime;
+    if (pauseTime != null) {
+      final elapsedSeconds = DateTime.now().difference(pauseTime).inSeconds;
       if (elapsedSeconds >= _gracePeriodSeconds) {
+        _lastPausedTime = null;
         state = state.copyWith(isLocked: true);
         authenticateAndUnlock();
+      }
+    } else {
+      // Check stored timestamp as fallback
+      final lastActive = await _biometricService.getLastActiveTime();
+      if (lastActive != null) {
+        final elapsedSeconds = DateTime.now().difference(lastActive).inSeconds;
+        if (elapsedSeconds >= _gracePeriodSeconds) {
+          state = state.copyWith(isLocked: true);
+          authenticateAndUnlock();
+        }
       }
     }
   }

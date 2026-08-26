@@ -121,10 +121,11 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, Unit>> signOut() async {
     try {
       await remoteDataSource.signOut();
+    } catch (_) {}
+
+    try {
       await localDataSource.clearCache();
       return const Right(unit);
-    } on AuthException catch (e) {
-      return Left(AuthFailure(e.message));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

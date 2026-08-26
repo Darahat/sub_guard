@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/widget_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="NEXT RENEWAL"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="#4338CA" />
+
+        <TextView
+            android:id="@+id/widget_due_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Due Soon"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:textColor="#B45309"
+            android:background="@drawable/widget_badge_amber"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_service_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="No upcoming renewals"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="#1F2937"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="2dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_amount"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="$0.00"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#4F46E5" />
+
+        <TextView
+            android:id="@+id/widget_renewal_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="All caught up"
+            android:textSize="11sp"
+            android:textColor="#6B7280" />
+    </LinearLayout>
+</LinearLayout>
+

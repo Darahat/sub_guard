@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../../core/database/isar_provider.dart';
+import '../../../../core/database/hive_provider.dart';
 import '../../../../core/services/csv_service.dart';
 import '../../../../core/sync/sync_service.dart';
 import '../../data/datasources/local_subscription_datasource.dart';
@@ -28,7 +28,9 @@ final csvServiceProvider = Provider<CsvService>((ref) {
 // Local Data Source
 final localSubscriptionDataSourceProvider =
     Provider<LocalSubscriptionDataSource>((ref) {
-      return LocalSubscriptionDataSourceImpl(isar: ref.watch(isarProvider));
+      return LocalSubscriptionDataSourceImpl(
+        box: ref.watch(subscriptionsBoxProvider),
+      );
     });
 
 // Repository

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:csv/csv.dart';
+import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -11,7 +12,16 @@ import 'package:uuid/uuid.dart';
 import '../../features/subscriptions/domain/entities/subscription_entity.dart';
 import '../utils/logger.dart';
 
-/// Result object for CSV Import operations
+enum ExportFormat {
+  excel('Microsoft Excel (.xlsx)', 'xlsx'),
+  csv('CSV Document (.csv)', 'csv');
+
+  final String label;
+  final String extension;
+  const ExportFormat(this.label, this.extension);
+}
+
+/// Result object for Import operations
 class CsvImportResult {
   final List<SubscriptionEntity> subscriptions;
   final int totalRowsFound;
@@ -31,15 +41,14 @@ class CsvImportResult {
   bool get isSuccessful => subscriptions.isNotEmpty;
 }
 
-/// Core service for exporting and importing subscription data in CSV format
+/// Universal Service for exporting and importing subscription data in Excel (.xlsx) and CSV (.csv) formats
 class CsvService {
   final Uuid _uuid;
 
   CsvService({Uuid? uuid}) : _uuid = uuid ?? const Uuid();
 
-  /// Standard CSV Header Row
-  static const List<String> csvHeaders = [
-    'ID',
+  /// Standard Table Header Row
+  static const List<String> tableHeaders = [
     'Service Name',
     'Amount',
     'Currency',
@@ -50,41 +59,114 @@ class CsvService {
     'Description',
     'Website URL',
     'Start Date',
-    'Created At',
   ];
 
-  /// Convert a list of SubscriptionEntity objects to an RFC 4180 CSV string
+  /// Convert a list of SubscriptionEntity objects to an RFC 4180 CSV string with UTF-8 BOM
   String generateCsvString(List<SubscriptionEntity> subscriptions) {
     final dateFormat = DateFormat('yyyy-MM-dd');
     final rows = <List<dynamic>>[];
 
     // 1. Add Header row
-    rows.add(csvHeaders);
+    rows.add(tableHeaders);
 
     // 2. Add data rows
     for (final sub in subscriptions) {
       rows.add([
-        sub.id,
         sub.serviceName,
         sub.amount.toStringAsFixed(2),
         sub.currency,
         sub.billingCycle.name,
         dateFormat.format(sub.nextBillingDate),
-        sub.category ?? '',
+        sub.category ?? 'Other',
         sub.status.name,
         sub.description ?? '',
         sub.websiteUrl ?? '',
         sub.startDate != null ? dateFormat.format(sub.startDate!) : '',
-        sub.createdAt != null ? sub.createdAt!.toIso8601String() : '',
       ]);
     }
 
-    const converter = ListToCsvConverter();
-    return converter.convert(rows);
+    // Prepend UTF-8 BOM (\uFEFF) so Excel on Windows/Mac opens CSV without character corruption
+    return '\uFEFF${csv.encode(rows)}';
   }
 
-  /// Exports subscriptions to a local file and triggers the native OS Share sheet
-  Future<String?> exportAndShare(List<SubscriptionEntity> subscriptions) async {
+  /// Exports subscriptions as native Microsoft Excel (.xlsx) workbook and shares via OS sheet
+  Future<String?> exportToExcel(List<SubscriptionEntity> subscriptions) async {
+    if (subscriptions.isEmpty) {
+      logger.warning('Excel Export: No subscriptions to export.');
+      return null;
+    }
+
+    try {
+      final excel = Excel.createExcel();
+      final sheet = excel['Subscriptions'];
+      excel.setDefaultSheet('Subscriptions');
+      if (excel.tables.containsKey('Sheet1')) {
+        excel.delete('Sheet1');
+      }
+
+      // Header row
+      sheet.appendRow(tableHeaders.map((h) => TextCellValue(h)).toList());
+
+      final dateFormat = DateFormat('yyyy-MM-dd');
+
+      // Data rows
+      for (final sub in subscriptions) {
+        sheet.appendRow([
+          TextCellValue(sub.serviceName),
+          DoubleCellValue(sub.amount),
+          TextCellValue(sub.currency),
+          TextCellValue(sub.billingCycle.name),
+          TextCellValue(dateFormat.format(sub.nextBillingDate)),
+          TextCellValue(sub.category ?? 'Other'),
+          TextCellValue(sub.status.name),
+          TextCellValue(sub.description ?? ''),
+          TextCellValue(sub.websiteUrl ?? ''),
+          TextCellValue(
+            sub.startDate != null ? dateFormat.format(sub.startDate!) : '',
+          ),
+        ]);
+      }
+
+      final bytes = excel.save();
+      if (bytes == null) {
+        throw Exception('Failed to generate Excel bytes.');
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final fileName = 'SubGuard_Subscriptions_$timestamp.xlsx';
+      final filePath = '${tempDir.path}/$fileName';
+
+      final file = File(filePath);
+      await file.writeAsBytes(bytes);
+
+      logger.info('Excel file created at: $filePath');
+
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(
+              filePath,
+              mimeType:
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              name: fileName,
+            ),
+          ],
+          subject: 'SubGuard Subscriptions Backup ($fileName)',
+          text: 'Attached is your SubGuard Excel backup spreadsheet.',
+        ),
+      );
+
+      return filePath;
+    } catch (e, stackTrace) {
+      logger.error('Error during Excel export & share: $e');
+      logger.error(stackTrace.toString());
+      rethrow;
+    }
+  }
+
+  /// Exports subscriptions as CSV file and shares via OS sheet
+  Future<String?> exportToCsv(List<SubscriptionEntity> subscriptions) async {
     if (subscriptions.isEmpty) {
       logger.warning('CSV Export: No subscriptions to export.');
       return null;
@@ -94,7 +176,7 @@ class CsvService {
       final csvString = generateCsvString(subscriptions);
       final tempDir = await getTemporaryDirectory();
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final fileName = 'SubGuard_Backup_$timestamp.csv';
+      final fileName = 'SubGuard_Subscriptions_$timestamp.csv';
       final filePath = '${tempDir.path}/$fileName';
 
       final file = File(filePath);
@@ -102,11 +184,12 @@ class CsvService {
 
       logger.info('CSV file created at: $filePath');
 
-      // Trigger native share sheet
-      await Share.shareXFiles(
-        [XFile(filePath, mimeType: 'text/csv', name: fileName)],
-        subject: 'SubGuard Subscriptions Backup ($fileName)',
-        text: 'Attached is your SubGuard subscriptions CSV backup file.',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(filePath, mimeType: 'text/csv', name: fileName)],
+          subject: 'SubGuard Subscriptions Backup ($fileName)',
+          text: 'Attached is your SubGuard CSV backup file.',
+        ),
       );
 
       return filePath;
@@ -117,40 +200,79 @@ class CsvService {
     }
   }
 
-  /// Opens the device file picker to select a .csv file and parses its contents
-  Future<CsvImportResult?> pickAndParseCsv({required String userId}) async {
+  /// Universal Export: Exports based on selected format
+  Future<String?> exportAndShare(
+    List<SubscriptionEntity> subscriptions, {
+    ExportFormat format = ExportFormat.excel,
+  }) async {
+    if (format == ExportFormat.excel) {
+      return exportToExcel(subscriptions);
+    } else {
+      return exportToCsv(subscriptions);
+    }
+  }
+
+  /// Universal Import: Opens file picker for .xlsx, .xls, and .csv files
+  Future<CsvImportResult?> pickAndParse({required String userId}) async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final pickedFile = await FilePicker.pickFile(
         type: FileType.custom,
-        allowedExtensions: ['csv'],
-        allowMultiple: false,
-        withData: true,
+        allowedExtensions: ['xlsx', 'xls', 'csv'],
       );
 
-      if (result == null || result.files.isEmpty) {
-        logger.info('User cancelled CSV file selection.');
+      if (pickedFile == null) {
+        logger.info('User cancelled file selection.');
         return null;
       }
 
-      final pickedFile = result.files.first;
-      String csvContent;
+      final extension = pickedFile.name.split('.').last.toLowerCase();
+      final bytes = await pickedFile.readAsBytes();
 
-      if (pickedFile.bytes != null) {
-        csvContent = utf8.decode(pickedFile.bytes!, allowMalformed: true);
-      } else if (pickedFile.path != null) {
-        final file = File(pickedFile.path!);
-        csvContent = await file.readAsString();
+      if (extension == 'xlsx' || extension == 'xls') {
+        final excel = Excel.decodeBytes(bytes);
+        final rows = <List<dynamic>>[];
+
+        for (final table in excel.tables.keys) {
+          final sheet = excel.tables[table];
+          if (sheet == null) continue;
+
+          for (final row in sheet.rows) {
+            rows.add(
+              row.map((cell) {
+                if (cell == null || cell.value == null) return '';
+                final val = cell.value;
+                if (val is TextCellValue) return val.value.text ?? '';
+                if (val is IntCellValue) return val.value.toString();
+                if (val is DoubleCellValue) return val.value.toString();
+                if (val is DateCellValue) {
+                  return '${val.year}-${val.month.toString().padLeft(2, '0')}-${val.day.toString().padLeft(2, '0')}';
+                }
+                if (val is DateTimeCellValue) {
+                  return '${val.year}-${val.month.toString().padLeft(2, '0')}-${val.day.toString().padLeft(2, '0')}';
+                }
+                return val.toString();
+              }).toList(),
+            );
+          }
+          if (rows.isNotEmpty) break;
+        }
+
+        return parseRows(rows, userId: userId);
       } else {
-        throw Exception('Could not read file data.');
+        // CSV decoding
+        final csvString = utf8.decode(bytes, allowMalformed: true);
+        return parseCsvString(csvString, userId: userId);
       }
-
-      return parseCsvString(csvContent, userId: userId);
     } catch (e, stackTrace) {
-      logger.error('Failed to pick/parse CSV: $e');
+      logger.error('Failed to pick/parse import file: $e');
       logger.error(stackTrace.toString());
       rethrow;
     }
   }
+
+  /// Alias for backward compatibility
+  Future<CsvImportResult?> pickAndParseCsv({required String userId}) =>
+      pickAndParse(userId: userId);
 
   /// Parses raw CSV string content into validated SubscriptionEntity objects
   CsvImportResult parseCsvString(String csvContent, {required String userId}) {
@@ -160,43 +282,96 @@ class CsvService {
         totalRowsFound: 0,
         validCount: 0,
         skippedCount: 0,
-        errorMessages: ['Selected CSV file is empty.'],
+        errorMessages: ['Selected file is empty.'],
       );
     }
 
-    const converter = CsvToListConverter(eol: '\n', shouldParseNumbers: false);
-    final rawRows = converter.convert(csvContent);
+    // Clean BOM if present
+    var cleanContent = csvContent;
+    if (cleanContent.startsWith('\uFEFF')) {
+      cleanContent = cleanContent.substring(1);
+    }
 
+    final rawRows = csv.decode(cleanContent);
+    return parseRows(rawRows, userId: userId);
+  }
+
+  /// Parses standardized table rows into validated SubscriptionEntity objects
+  CsvImportResult parseRows(
+    List<List<dynamic>> rawRows, {
+    required String userId,
+  }) {
     if (rawRows.isEmpty) {
       return const CsvImportResult(
         subscriptions: [],
         totalRowsFound: 0,
         validCount: 0,
         skippedCount: 0,
-        errorMessages: ['No readable rows found in CSV file.'],
+        errorMessages: ['No readable rows found in file.'],
       );
     }
 
     // Identify header indices dynamically
-    final headerRow = rawRows.first.map((e) => e.toString().trim().toLowerCase()).toList();
+    final headerRow = rawRows.first
+        .map((e) => e.toString().trim().toLowerCase())
+        .toList();
 
-    int nameIndex = _findHeaderIndex(headerRow, ['service name', 'name', 'service', 'title', 'subscription']);
-    int amountIndex = _findHeaderIndex(headerRow, ['amount', 'cost', 'price', 'fee']);
+    int nameIndex = _findHeaderIndex(headerRow, [
+      'service name',
+      'name',
+      'service',
+      'title',
+      'subscription',
+    ]);
+    int amountIndex = _findHeaderIndex(headerRow, [
+      'amount',
+      'cost',
+      'price',
+      'fee',
+    ]);
     int currencyIndex = _findHeaderIndex(headerRow, ['currency', 'curr']);
-    int cycleIndex = _findHeaderIndex(headerRow, ['billing cycle', 'cycle', 'frequency', 'period']);
-    int nextDateIndex = _findHeaderIndex(headerRow, ['next billing date', 'next billing', 'next payment', 'renewal date', 'date']);
-    int categoryIndex = _findHeaderIndex(headerRow, ['category', 'group', 'type']);
+    int cycleIndex = _findHeaderIndex(headerRow, [
+      'billing cycle',
+      'cycle',
+      'frequency',
+      'period',
+    ]);
+    int nextDateIndex = _findHeaderIndex(headerRow, [
+      'next billing date',
+      'next billing',
+      'next payment',
+      'renewal date',
+      'date',
+    ]);
+    int categoryIndex = _findHeaderIndex(headerRow, [
+      'category',
+      'group',
+      'type',
+    ]);
     int statusIndex = _findHeaderIndex(headerRow, ['status', 'state']);
-    int descIndex = _findHeaderIndex(headerRow, ['description', 'notes', 'note']);
-    int webIndex = _findHeaderIndex(headerRow, ['website url', 'website', 'url', 'link']);
-    int startDateIndex = _findHeaderIndex(headerRow, ['start date', 'started', 'created']);
+    int descIndex = _findHeaderIndex(headerRow, [
+      'description',
+      'notes',
+      'note',
+    ]);
+    int webIndex = _findHeaderIndex(headerRow, [
+      'website url',
+      'website',
+      'url',
+      'link',
+    ]);
+    int startDateIndex = _findHeaderIndex(headerRow, [
+      'start date',
+      'started',
+      'created',
+    ]);
 
     // Fallbacks if headers weren't named standardly
-    if (nameIndex == -1) nameIndex = 1;
-    if (amountIndex == -1) amountIndex = 2;
-    if (currencyIndex == -1) currencyIndex = 3;
-    if (cycleIndex == -1) cycleIndex = 4;
-    if (nextDateIndex == -1) nextDateIndex = 5;
+    if (nameIndex == -1) nameIndex = 0;
+    if (amountIndex == -1) amountIndex = 1;
+    if (currencyIndex == -1) currencyIndex = 2;
+    if (cycleIndex == -1) cycleIndex = 3;
+    if (nextDateIndex == -1) nextDateIndex = 4;
 
     final validList = <SubscriptionEntity>[];
     final errors = <String>[];
@@ -205,7 +380,8 @@ class CsvService {
     // Process each row (skip header)
     for (int i = 1; i < rawRows.length; i++) {
       final row = rawRows[i];
-      if (row.isEmpty || (row.length == 1 && row[0].toString().trim().isEmpty)) {
+      if (row.isEmpty ||
+          (row.length == 1 && row[0].toString().trim().isEmpty)) {
         continue; // Skip empty trailing lines
       }
 
@@ -217,14 +393,16 @@ class CsvService {
           continue;
         }
 
-        // Parse Amount safely (stripping '$', '€', '£', ',')
+        // Parse Amount safely (stripping currency symbols)
         final rawAmount = _getValue(row, amountIndex);
         final cleanAmountStr = rawAmount.replaceAll(RegExp(r'[^\d.]'), '');
         final amount = double.tryParse(cleanAmountStr) ?? 0.0;
 
         if (amount <= 0) {
           skippedCount++;
-          errors.add('Row ${i + 1} ($serviceName): Invalid or zero amount "$rawAmount".');
+          errors.add(
+            'Row ${i + 1} ($serviceName): Invalid or zero amount "$rawAmount".',
+          );
           continue;
         }
 
@@ -240,17 +418,23 @@ class CsvService {
 
         // Parse Next Billing Date
         final rawNextDate = _getValue(row, nextDateIndex);
-        final nextBillingDate = _parseDate(rawNextDate) ?? DateTime.now().add(const Duration(days: 30));
+        final nextBillingDate =
+            _parseDate(rawNextDate) ??
+            DateTime.now().add(const Duration(days: 30));
 
         // Parse Status
         final rawStatus = _getValue(row, statusIndex).toLowerCase();
         final status = _parseStatus(rawStatus);
 
         // Optional fields
-        final category = categoryIndex != -1 ? _getValue(row, categoryIndex) : null;
+        final category = categoryIndex != -1
+            ? _getValue(row, categoryIndex)
+            : null;
         final description = descIndex != -1 ? _getValue(row, descIndex) : null;
         final websiteUrl = webIndex != -1 ? _getValue(row, webIndex) : null;
-        final startDate = startDateIndex != -1 ? _parseDate(_getValue(row, startDateIndex)) : null;
+        final startDate = startDateIndex != -1
+            ? _parseDate(_getValue(row, startDateIndex))
+            : null;
 
         final subscription = SubscriptionEntity(
           id: _uuid.v4(),
@@ -260,12 +444,12 @@ class CsvService {
           currency: currency,
           billingCycle: cycle,
           nextBillingDate: nextBillingDate,
-          category: category?.isNotEmpty == true ? category : 'Entertainment',
+          category: category?.isNotEmpty == true ? category : 'Other',
           status: status,
           description: description?.isNotEmpty == true ? description : null,
           websiteUrl: websiteUrl?.isNotEmpty == true ? websiteUrl : null,
           startDate: startDate,
-          notificationDays: const ['1', '3'],
+          notificationDays: const ['7', '3', '1'],
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
@@ -337,11 +521,9 @@ class CsvService {
   DateTime? _parseDate(String dateStr) {
     if (dateStr.trim().isEmpty) return null;
 
-    // 1. Try ISO 8601 (yyyy-MM-dd or yyyy-MM-ddTHH:mm:ss)
     final isoDate = DateTime.tryParse(dateStr.trim());
     if (isoDate != null) return isoDate;
 
-    // 2. Try common formats
     final formats = [
       DateFormat('yyyy-MM-dd'),
       DateFormat('MM/dd/yyyy'),

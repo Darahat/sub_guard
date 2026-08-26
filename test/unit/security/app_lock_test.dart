@@ -75,7 +75,8 @@ void main() {
       fakeBiometricService.isLockEnabled = true;
       fakeBiometricService.shouldAuthSucceed = true;
 
-      appLockNotifier = AppLockNotifier(fakeBiometricService);
+      appLockNotifier =
+          AppLockNotifier(fakeBiometricService, autoInit: false);
       await appLockNotifier.initialize();
 
       expect(appLockNotifier.state.isEnabled, isTrue);
@@ -88,7 +89,8 @@ void main() {
       fakeBiometricService.isLockEnabled = true;
       fakeBiometricService.shouldAuthSucceed = false;
 
-      appLockNotifier = AppLockNotifier(fakeBiometricService);
+      appLockNotifier =
+          AppLockNotifier(fakeBiometricService, autoInit: false);
       await appLockNotifier.initialize();
 
       expect(appLockNotifier.state.isEnabled, isTrue);
@@ -102,7 +104,8 @@ void main() {
       fakeBiometricService.isLockEnabled = false;
       fakeBiometricService.shouldAuthSucceed = true;
 
-      appLockNotifier = AppLockNotifier(fakeBiometricService);
+      appLockNotifier =
+          AppLockNotifier(fakeBiometricService, autoInit: false);
       await appLockNotifier.initialize();
 
       final result = await appLockNotifier.toggleAppLock(true);

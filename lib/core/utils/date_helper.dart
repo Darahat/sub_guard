@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 
+import '../../features/subscriptions/domain/entities/subscription_entity.dart';
 import '../constants/app_constants.dart';
 
 class DateHelper {
@@ -26,6 +27,11 @@ class DateHelper {
     } catch (e) {
       return null;
     }
+  }
+
+  // Normalize date to calendar date (stripping time-of-day)
+  static DateTime dateOnly(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
   }
 
   // Get days until date
@@ -100,28 +106,87 @@ class DateHelper {
     return DateFormat('MMM').format(DateTime(2000, month));
   }
 
-  // Add months to date
+  /// Add months safely preserving month-end dates (e.g. Jan 31 -> Feb 28/29)
   static DateTime addMonths(DateTime date, int months) {
+    final newYear = date.year + ((date.month + months - 1) ~/ 12);
+    final newMonth = ((date.month + months - 1) % 12) + 1;
+    final maxDaysInMonth = DateTime(newYear, newMonth + 1, 0).day;
+    final newDay = date.day > maxDaysInMonth ? maxDaysInMonth : date.day;
     return DateTime(
-      date.year,
-      date.month + months,
-      date.day,
+      newYear,
+      newMonth,
+      newDay,
       date.hour,
       date.minute,
       date.second,
+      date.millisecond,
+      date.microsecond,
     );
   }
 
-  // Add years to date
+  /// Add years safely handling leap-year dates (e.g. Feb 29 -> Feb 28)
   static DateTime addYears(DateTime date, int years) {
+    final newYear = date.year + years;
+    final maxDaysInMonth = DateTime(newYear, date.month + 1, 0).day;
+    final newDay = date.day > maxDaysInMonth ? maxDaysInMonth : date.day;
     return DateTime(
-      date.year + years,
+      newYear,
       date.month,
-      date.day,
+      newDay,
       date.hour,
       date.minute,
       date.second,
+      date.millisecond,
+      date.microsecond,
     );
+  }
+
+  /// Add a single billing cycle safely with month-end protection
+  static DateTime addBillingCycle(DateTime base, BillingCycle cycle) {
+    switch (cycle) {
+      case BillingCycle.daily:
+        return base.add(const Duration(days: 1));
+      case BillingCycle.weekly:
+        return base.add(const Duration(days: 7));
+      case BillingCycle.monthly:
+        return addMonths(base, 1);
+      case BillingCycle.quarterly:
+        return addMonths(base, 3);
+      case BillingCycle.yearly:
+        return addYears(base, 1);
+    }
+  }
+
+  /// Advances a billing date past [now] to prevent overdue dates when an app isn't opened for months
+  static DateTime advanceToNextFutureBillingDate({
+    required DateTime previousDate,
+    required BillingCycle cycle,
+    required DateTime now,
+  }) {
+    var next = addBillingCycle(previousDate, cycle);
+    while (!next.isAfter(now)) {
+      next = addBillingCycle(next, cycle);
+    }
+    return next;
+  }
+
+  /// Centralized annual cost computation
+  static double calculateAnnualCost({
+    required double amount,
+    required BillingCycle billingCycle,
+  }) {
+    switch (billingCycle) {
+      case BillingCycle.daily:
+        return amount * 365;
+      case BillingCycle.weekly:
+        return amount * 52;
+      case BillingCycle.monthly:
+        return amount * 12;
+      case BillingCycle.quarterly:
+        return amount * 4;
+      case BillingCycle.yearly:
+        return amount;
+    }
   }
 
   // Get start of month

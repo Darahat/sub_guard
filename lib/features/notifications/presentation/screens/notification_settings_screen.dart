@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../monetization/presentation/providers/purchase_notifier.dart';
+import '../../../monetization/presentation/widgets/paywall_bottom_sheet.dart';
 import '../providers/notification_settings_notifier.dart';
 
-/// Screen for managing notification settings
 class NotificationSettingsScreen extends ConsumerWidget {
   const NotificationSettingsScreen({super.key});
 
@@ -12,178 +15,340 @@ class NotificationSettingsScreen extends ConsumerWidget {
     final settingsState = ref.watch(notificationSettingsNotifierProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notification Settings')),
+      appBar: AppBar(title: const Text('Notification Alarms')),
       body: settingsState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               children: [
-                // Enable/Disable Notifications
-                SwitchListTile(
-                  title: const Text('Enable Notifications'),
-                  subtitle: const Text(
-                    'Receive reminders for upcoming renewals',
-                  ),
-                  value: settingsState.settings.enabled,
-                  onChanged: (value) {
-                    ref
-                        .read(notificationSettingsNotifierProvider.notifier)
-                        .toggleNotifications(value);
-                  },
-                ),
-
-                const Divider(),
-
-                // Reminder Times Section
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Reminder Times',
-                        style: Theme.of(context).textTheme.titleMedium,
+                // 1. Master Enable Section
+                _buildSectionHeader('MASTER SWITCH'),
+                _buildGroupedCard(
+                  children: [
+                    SwitchListTile(
+                      secondary: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.notifications_active_outlined,
+                          color: AppColors.primary,
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Get notified X days before renewal',
-                        style: Theme.of(context).textTheme.bodySmall,
+                      title: const Text(
+                        'Enable Reminders',
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
-                    ],
-                  ),
-                ),
-
-                // Reminder Day Chips
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Wrap(
-                    spacing: 8.0,
-                    children: [
-                      for (final days in [1, 3, 7, 14, 30])
-                        FilterChip(
-                          label: Text('$days ${days == 1 ? 'day' : 'days'}'),
-                          selected: settingsState.settings.defaultReminderDays
-                              .contains(days),
-                          onSelected: (selected) {
-                            ref
-                                .read(
-                                  notificationSettingsNotifierProvider.notifier,
-                                )
-                                .toggleReminderDay(days);
-                          },
-                        ),
-                    ],
-                  ),
-                ),
-
-                const Divider(),
-
-                // Sound Settings
-                SwitchListTile(
-                  title: const Text('Sound'),
-                  subtitle: const Text('Play sound for notifications'),
-                  value: settingsState.settings.soundEnabled,
-                  onChanged: settingsState.settings.enabled
-                      ? (value) {
-                          ref
-                              .read(
-                                notificationSettingsNotifierProvider.notifier,
-                              )
-                              .toggleSound(value);
-                        }
-                      : null,
-                ),
-
-                // Vibration Settings
-                SwitchListTile(
-                  title: const Text('Vibration'),
-                  subtitle: const Text('Vibrate for notifications'),
-                  value: settingsState.settings.vibrationEnabled,
-                  onChanged: settingsState.settings.enabled
-                      ? (value) {
-                          ref
-                              .read(
-                                notificationSettingsNotifierProvider.notifier,
-                              )
-                              .toggleVibration(value);
-                        }
-                      : null,
-                ),
-
-                // Badge Settings
-                SwitchListTile(
-                  title: const Text('Badge'),
-                  subtitle: const Text('Show badge on app icon'),
-                  value: settingsState.settings.badgeEnabled,
-                  onChanged: settingsState.settings.enabled
-                      ? (value) {
-                          ref
-                              .read(
-                                notificationSettingsNotifierProvider.notifier,
-                              )
-                              .toggleBadge(value);
-                        }
-                      : null,
-                ),
-
-                const Divider(),
-
-                // Test Notification Button
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: OutlinedButton.icon(
-                    onPressed: settingsState.settings.enabled
-                        ? () {
-                            ref
-                                .read(
-                                  notificationSettingsNotifierProvider.notifier,
-                                )
-                                .sendTestNotification();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Test notification sent! Check your device.',
-                                ),
-                              ),
-                            );
-                          }
-                        : null,
-                    icon: const Icon(Icons.notifications_active),
-                    label: const Text('Send Test Notification'),
-                  ),
-                ),
-
-                // Info Card
-                Card(
-                  margin: const EdgeInsets.all(16.0),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'About Notifications',
-                              style: Theme.of(context).textTheme.titleSmall,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Notifications help you stay on top of your subscriptions by reminding you before renewals. You can customize when to receive reminders and manage notification preferences here.',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                      ],
+                      subtitle: const Text(
+                        'Receive alarms before renewal charges',
+                      ),
+                      value: settingsState.settings.enabled,
+                      onChanged: (value) {
+                        HapticFeedback.selectionClick();
+                        ref
+                            .read(notificationSettingsNotifierProvider.notifier)
+                            .toggleNotifications(value);
+                      },
                     ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // 2. Reminder Timeline Days
+                _buildSectionHeader('ADVANCE WARNING DAYS'),
+                _buildGroupedCard(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Select when you want to receive alerts before renewal:',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Wrap(
+                            spacing: 8.0,
+                            runSpacing: 8.0,
+                            children: [
+                              for (final days in [1, 3, 7, 14, 30])
+                                Builder(
+                                  builder: (context) {
+                                    final isPro = ref
+                                        .watch(purchaseNotifierProvider)
+                                        .isPro;
+                                    final isSelected = settingsState
+                                        .settings
+                                        .defaultReminderDays
+                                        .contains(days);
+                                    final isLocked = days >= 14 && !isPro;
+
+                                    return FilterChip(
+                                      avatar: isLocked
+                                          ? const Icon(
+                                              Icons.lock_outline,
+                                              size: 14,
+                                              color: AppColors.primary,
+                                            )
+                                          : (isSelected
+                                                ? const Icon(
+                                                    Icons.check,
+                                                    size: 16,
+                                                    color: Colors.white,
+                                                  )
+                                                : null),
+                                      label: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '$days ${days == 1 ? 'day' : 'days'} before',
+                                          ),
+                                          if (isLocked) ...[
+                                            const SizedBox(width: 4),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 4,
+                                                    vertical: 1,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.primary
+                                                    .withValues(alpha: 0.15),
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                              ),
+                                              child: const Text(
+                                                'PRO',
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppColors.primary,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      selected: isSelected,
+                                      selectedColor: AppColors.primary,
+                                      labelStyle: TextStyle(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : AppColors.textPrimary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      onSelected: settingsState.settings.enabled
+                                          ? (selected) {
+                                              if (isLocked) {
+                                                HapticFeedback.mediumImpact();
+                                                showModalBottomSheet(
+                                                  context: context,
+                                                  isScrollControlled: true,
+                                                  backgroundColor:
+                                                      Colors.transparent,
+                                                  builder: (_) =>
+                                                      const PaywallBottomSheet(),
+                                                );
+                                                return;
+                                              }
+                                              HapticFeedback.selectionClick();
+                                              ref
+                                                  .read(
+                                                    notificationSettingsNotifierProvider
+                                                        .notifier,
+                                                  )
+                                                  .toggleReminderDay(days);
+                                            }
+                                          : null,
+                                    );
+                                  },
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // 3. Sensory Preferences
+                _buildSectionHeader('ALERT PREFERENCES'),
+                _buildGroupedCard(
+                  children: [
+                    SwitchListTile(
+                      secondary: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.volume_up_outlined,
+                          color: Colors.blue,
+                        ),
+                      ),
+                      title: const Text(
+                        'Sound',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: const Text('Play chime with reminder'),
+                      value: settingsState.settings.soundEnabled,
+                      onChanged: settingsState.settings.enabled
+                          ? (value) {
+                              HapticFeedback.selectionClick();
+                              ref
+                                  .read(
+                                    notificationSettingsNotifierProvider
+                                        .notifier,
+                                  )
+                                  .toggleSound(value);
+                            }
+                          : null,
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      secondary: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.vibration_outlined,
+                          color: Colors.orange,
+                        ),
+                      ),
+                      title: const Text(
+                        'Vibration',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: const Text('Tactile vibration on alarm'),
+                      value: settingsState.settings.vibrationEnabled,
+                      onChanged: settingsState.settings.enabled
+                          ? (value) {
+                              HapticFeedback.selectionClick();
+                              ref
+                                  .read(
+                                    notificationSettingsNotifierProvider
+                                        .notifier,
+                                  )
+                                  .toggleVibration(value);
+                            }
+                          : null,
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      secondary: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.mark_email_unread_outlined,
+                          color: Colors.red,
+                        ),
+                      ),
+                      title: const Text(
+                        'App Icon Badge',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: const Text('Display badge on app icon'),
+                      value: settingsState.settings.badgeEnabled,
+                      onChanged: settingsState.settings.enabled
+                          ? (value) {
+                              HapticFeedback.selectionClick();
+                              ref
+                                  .read(
+                                    notificationSettingsNotifierProvider
+                                        .notifier,
+                                  )
+                                  .toggleBadge(value);
+                            }
+                          : null,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // 4. Test Notification Button
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: settingsState.settings.enabled
+                      ? () {
+                          HapticFeedback.mediumImpact();
+                          ref
+                              .read(
+                                notificationSettingsNotifierProvider.notifier,
+                              )
+                              .sendTestNotification();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                '🔔 Test notification sent! Check your notification tray.',
+                              ),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        }
+                      : null,
+                  icon: const Icon(Icons.notifications_active, size: 20),
+                  label: const Text(
+                    'Dispatch Test Alarm',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey.shade600,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupedCard({required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: Column(children: children),
+      ),
     );
   }
 }

@@ -250,7 +250,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-                  // Primary Continue Button
+                  // Primary Continue / Guest Button
                   SizedBox(
                     width: double.infinity,
                     height: 52,
@@ -274,32 +274,52 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         }
                       },
                       child: Text(
-                        isLastPage ? 'Get Started' : 'Continue',
+                        isLastPage ? 'Continue as Guest' : 'Continue',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
                   const SizedBox(height: 10),
 
-                  // Interactive Tour Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                  // If last page: Show Sign In button; otherwise: Interactive Tour button
+                  if (isLastPage)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.primary),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
+                        icon: const Icon(Icons.login, size: 20, color: AppColors.primary),
+                        label: const Text(
+                          'Sign In / Create Account',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary),
+                        ),
+                        onPressed: () => _completeOnboarding(openLogin: true),
                       ),
-                      icon: const Icon(Icons.explore_outlined, size: 20),
-                      label: const Text(
-                        'Take a Quick Interactive Tour',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        icon: const Icon(Icons.explore_outlined, size: 20),
+                        label: const Text(
+                          'Take a Quick Interactive Tour',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                        onPressed: () => context.push('/onboarding/tour'),
                       ),
-                      onPressed: () => context.push('/onboarding/tour'),
                     ),
-                  ),
                 ],
               ),
             ),

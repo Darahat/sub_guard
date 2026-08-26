@@ -1,3 +1,4 @@
+// Location: lib/core/sync/sync_service.dart
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -65,13 +66,12 @@ class SyncService {
 
     // Determine current user ID
     final currentUserId = userId ?? _ref.read(currentUserProvider)?.id;
-    if (currentUserId == null || currentUserId.isEmpty || currentUserId == 'local_user') {
+    if (currentUserId == null ||
+        currentUserId.isEmpty ||
+        currentUserId == 'local_user') {
       // Local-only mode, no remote sync needed
       _updateStatus(
-        _currentStatus.copyWith(
-          isSyncing: false,
-          state: SyncState.idle,
-        ),
+        _currentStatus.copyWith(isSyncing: false, state: SyncState.idle),
       );
       return;
     }
@@ -123,12 +123,21 @@ class SyncService {
       // Get local subscriptions
       final localSubscriptions = await _localDataSource.getAllSubscriptions();
 
-      // Get remote subscriptions
+      // 1. Auto-migrate any unassigned or guest subscriptions to current authenticated userId
+      for (final local in localSubscriptions) {
+        if (local.userId.isEmpty || local.userId == 'local_user') {
+          local.userId = userId;
+          local.updatedAt = DateTime.now();
+          await _localDataSource.updateSubscription(local);
+        }
+      }
+
+      // 2. Fetch remote subscriptions from Firestore
       final remoteSubscriptions = await _remoteDataSource.getAllSubscriptions(
         userId,
       );
 
-      // Create maps for easier lookup
+      // Create maps for fast lookups
       final localMap = {
         for (var sub in localSubscriptions) sub.subscriptionId: sub,
       };
@@ -136,17 +145,15 @@ class SyncService {
         for (var sub in remoteSubscriptions) sub.subscriptionId: sub,
       };
 
-      // Find items to upload (local but not remote, or local is newer)
+      // 3. Upload items (local exists but not remote, or local is newer)
       for (final local in localSubscriptions) {
         final remote = remoteMap[local.subscriptionId];
 
         if (remote == null) {
-          // Local item doesn't exist remotely, upload it
           await _remoteDataSource.createSubscription(userId, local);
         } else if (local.updatedAt != null &&
             remote.updatedAt != null &&
             local.updatedAt!.isAfter(remote.updatedAt!)) {
-          // Local is newer, update remote
           await _remoteDataSource.updateSubscription(
             userId,
             local.subscriptionId,
@@ -155,17 +162,15 @@ class SyncService {
         }
       }
 
-      // Find items to download (remote but not local, or remote is newer)
+      // 4. Download items (remote exists but not local, or remote is newer)
       for (final remote in remoteSubscriptions) {
         final local = localMap[remote.subscriptionId];
 
         if (local == null) {
-          // Remote item doesn't exist locally, download it
           await _localDataSource.addSubscription(remote);
         } else if (remote.updatedAt != null &&
             local.updatedAt != null &&
             remote.updatedAt!.isAfter(local.updatedAt!)) {
-          // Remote is newer, update local
           await _localDataSource.updateSubscription(remote);
         }
       }
@@ -224,4 +229,3 @@ final syncStatusStreamProvider = StreamProvider<SyncStatus>((ref) {
   final syncService = ref.watch(syncServiceProvider);
   return syncService.syncStatusStream;
 });
-

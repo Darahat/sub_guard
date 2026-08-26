@@ -2,7 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-import '../../../../core/database/isar_provider.dart';
+export 'auth_notifier.dart';
+
+import '../../../../core/database/hive_provider.dart';
 import '../../data/datasources/firebase_auth_datasource.dart';
 import '../../data/datasources/local_auth_datasource.dart';
 import '../../data/repositories/auth_repository_impl.dart';
@@ -21,9 +23,12 @@ final firebaseAuthProvider = Provider<FirebaseAuth>((ref) {
   return FirebaseAuth.instance;
 });
 
-// Google Sign In instance
+// Google Sign In instance with OAuth 2.0 Web Client ID
 final googleSignInProvider = Provider<GoogleSignIn>((ref) {
-  return GoogleSignIn(scopes: ['email', 'profile']);
+  return GoogleSignIn(
+    serverClientId:
+        '142135278951-tnugljbgi9st33ae7bqf4k1ns974mni8.apps.googleusercontent.com',
+  );
 });
 
 // Remote Data Source
@@ -36,7 +41,7 @@ final firebaseAuthDataSourceProvider = Provider<FirebaseAuthDataSource>((ref) {
 
 // Local Data Source
 final localAuthDataSourceProvider = Provider<LocalAuthDataSource>((ref) {
-  return LocalAuthDataSourceImpl(isar: ref.watch(isarProvider));
+  return LocalAuthDataSourceImpl(box: ref.watch(usersBoxProvider));
 });
 
 // Repository
@@ -87,9 +92,4 @@ final getCurrentUserUseCaseProvider = Provider<GetCurrentUserUseCase>((ref) {
 // Auth State Stream
 final authStateChangesProvider = StreamProvider((ref) {
   return ref.watch(authRepositoryProvider).authStateChanges;
-});
-
-// Current User Provider
-final currentUserProvider = Provider((ref) {
-  return ref.watch(authRepositoryProvider).currentUser;
 });

@@ -1,10 +1,11 @@
-import 'package:isar/isar.dart';
+import 'dart:convert';
+import 'package:hive_ce/hive.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../../domain/entities/subscription_entity.dart';
 import '../models/subscription_model.dart';
 
-/// Local subscription data source using Isar
+/// Local subscription data source using Hive
 abstract class LocalSubscriptionDataSource {
   /// Get all subscriptions
   Future<List<SubscriptionModel>> getAllSubscriptions();
@@ -40,14 +41,17 @@ abstract class LocalSubscriptionDataSource {
 }
 
 class LocalSubscriptionDataSourceImpl implements LocalSubscriptionDataSource {
-  final Isar isar;
+  final Box<String> box;
 
-  LocalSubscriptionDataSourceImpl({required this.isar});
+  LocalSubscriptionDataSourceImpl({required this.box});
 
   @override
   Future<List<SubscriptionModel>> getAllSubscriptions() async {
     try {
-      return await isar.subscriptionModels.where().findAll();
+      return box.values
+          .map((jsonStr) =>
+              SubscriptionModel.fromJson(json.decode(jsonStr) as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       throw CacheException('Failed to get subscriptions: ${e.toString()}');
     }
@@ -56,10 +60,10 @@ class LocalSubscriptionDataSourceImpl implements LocalSubscriptionDataSource {
   @override
   Future<SubscriptionModel?> getSubscriptionById(String id) async {
     try {
-      return await isar.subscriptionModels
-          .filter()
-          .subscriptionIdEqualTo(id)
-          .findFirst();
+      final jsonStr = box.get(id);
+      if (jsonStr == null) return null;
+      return SubscriptionModel.fromJson(
+          json.decode(jsonStr) as Map<String, dynamic>);
     } catch (e) {
       throw CacheException('Failed to get subscription: ${e.toString()}');
     }
@@ -70,12 +74,12 @@ class LocalSubscriptionDataSourceImpl implements LocalSubscriptionDataSource {
     SubscriptionStatus status,
   ) async {
     try {
-      return await isar.subscriptionModels
-          .filter()
-          .statusEqualTo(status)
-          .findAll();
+      final all = await getAllSubscriptions();
+      return all.where((s) => s.status == status).toList();
     } catch (e) {
-      throw CacheException('Failed to get subscriptions by status: ${e.toString()}');
+      throw CacheException(
+        'Failed to get subscriptions by status: ${e.toString()}',
+      );
     }
   }
 
@@ -84,12 +88,12 @@ class LocalSubscriptionDataSourceImpl implements LocalSubscriptionDataSource {
     String category,
   ) async {
     try {
-      return await isar.subscriptionModels
-          .filter()
-          .categoryEqualTo(category)
-          .findAll();
+      final all = await getAllSubscriptions();
+      return all.where((s) => s.category?.toLowerCase() == category.toLowerCase()).toList();
     } catch (e) {
-      throw CacheException('Failed to get subscriptions by category: ${e.toString()}');
+      throw CacheException(
+        'Failed to get subscriptions by category: ${e.toString()}',
+      );
     }
   }
 
@@ -98,9 +102,10 @@ class LocalSubscriptionDataSourceImpl implements LocalSubscriptionDataSource {
     SubscriptionModel subscription,
   ) async {
     try {
-      await isar.writeTxn(() async {
-        await isar.subscriptionModels.put(subscription);
-      });
+      await box.put(
+        subscription.subscriptionId,
+        json.encode(subscription.toJson()),
+      );
       return subscription;
     } catch (e) {
       throw CacheException('Failed to add subscription: ${e.toString()}');
@@ -112,9 +117,10 @@ class LocalSubscriptionDataSourceImpl implements LocalSubscriptionDataSource {
     SubscriptionModel subscription,
   ) async {
     try {
-      await isar.writeTxn(() async {
-        await isar.subscriptionModels.put(subscription);
-      });
+      await box.put(
+        subscription.subscriptionId,
+        json.encode(subscription.toJson()),
+      );
       return subscription;
     } catch (e) {
       throw CacheException('Failed to update subscription: ${e.toString()}');
@@ -124,15 +130,7 @@ class LocalSubscriptionDataSourceImpl implements LocalSubscriptionDataSource {
   @override
   Future<void> deleteSubscription(String id) async {
     try {
-      await isar.writeTxn(() async {
-        final subscription = await isar.subscriptionModels
-            .filter()
-            .subscriptionIdEqualTo(id)
-            .findFirst();
-        if (subscription != null) {
-          await isar.subscriptionModels.delete(subscription.id);
-        }
-      });
+      await box.delete(id);
     } catch (e) {
       throw CacheException('Failed to delete subscription: ${e.toString()}');
     }
@@ -141,13 +139,9 @@ class LocalSubscriptionDataSourceImpl implements LocalSubscriptionDataSource {
   @override
   Future<List<SubscriptionModel>> searchSubscriptions(String query) async {
     try {
-      final lowerQuery = query.toLowerCase();
-      return await isar.subscriptionModels
-          .filter()
-          .serviceNameContains(lowerQuery, caseSensitive: false)
-          .or()
-          .descriptionContains(lowerQuery, caseSensitive: false)
-          .findAll();
+      final all = await getAllSubscriptions();
+      final q = query.toLowerCase();
+      return all.where((s) => s.serviceName.toLowerCase().contains(q)).toList();
     } catch (e) {
       throw CacheException('Failed to search subscriptions: ${e.toString()}');
     }
@@ -156,29 +150,28 @@ class LocalSubscriptionDataSourceImpl implements LocalSubscriptionDataSource {
   @override
   Future<List<SubscriptionModel>> getExpiringSoonSubscriptions(int days) async {
     try {
+      final all = await getAllSubscriptions();
       final now = DateTime.now();
-      final futureDate = now.add(Duration(days: days));
+      final threshold = now.add(Duration(days: days));
 
-      return await isar.subscriptionModels
-          .filter()
-          .statusEqualTo(SubscriptionStatus.active)
-          .and()
-          .nextBillingDateBetween(now, futureDate)
-          .findAll();
+      return all.where((sub) {
+        return sub.nextBillingDate.isAfter(now) &&
+            sub.nextBillingDate.isBefore(threshold) &&
+            sub.status == SubscriptionStatus.active;
+      }).toList();
     } catch (e) {
-      throw CacheException('Failed to get expiring subscriptions: ${e.toString()}');
+      throw CacheException(
+        'Failed to get expiring subscriptions: ${e.toString()}',
+      );
     }
   }
 
   @override
   Future<void> clearAll() async {
     try {
-      await isar.writeTxn(() async {
-        await isar.subscriptionModels.clear();
-      });
+      await box.clear();
     } catch (e) {
       throw CacheException('Failed to clear subscriptions: ${e.toString()}');
     }
   }
 }
-
