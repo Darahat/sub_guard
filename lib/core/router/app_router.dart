@@ -163,12 +163,6 @@ class AppRouter {
         },
       ),
 
-      // Notifications
-      GoRoute(
-        path: notificationSettings,
-        name: 'notificationSettings',
-        builder: (context, state) => const NotificationSettingsScreen(),
-      ),
       GoRoute(
         path: paymentMethods,
         name: 'paymentMethods',

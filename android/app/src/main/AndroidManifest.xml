@@ -41,6 +41,7 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
+        </receiver>
         <!-- SubGuard Upcoming Renewal AppWidget -->
         <receiver
             android:name=".UpcomingRenewalWidgetProvider"
