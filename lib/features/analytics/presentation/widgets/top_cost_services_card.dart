@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/currency/currency_converter.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -63,8 +64,8 @@ class TopCostServicesCard extends ConsumerWidget {
                     color: Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
-                    Icons.leaderboard_outlined,
+                  child: const HeroIcon(
+                    HeroIcons.trophy,
                     color: Colors.orange,
                     size: 20,
                   ),

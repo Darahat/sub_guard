@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_helper.dart';
@@ -37,8 +38,13 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
                       touchedIndex = -1;
                       return;
                     }
-                    touchedIndex =
+
+                    final newIndex =
                         pieTouchResponse.touchedSection!.touchedSectionIndex;
+                    if (newIndex != touchedIndex && newIndex != -1) {
+                      HapticFeedback.selectionClick();
+                    }
+                    touchedIndex = newIndex;
                   });
                 },
               ),

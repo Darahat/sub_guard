@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:heroicons/heroicons.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_constants.dart';
@@ -131,6 +132,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         await ref
             .read(subscriptionNotifierProvider.notifier)
             .exportData(format: format);
+        HapticFeedback.heavyImpact();
       } finally {
         if (mounted) setState(() => _isExporting = false);
       }
@@ -208,162 +210,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings & Vault')),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          12,
+          16,
+          12 + MediaQuery.paddingOf(context).bottom,
+        ),
         children: [
-          // 1. Account Profile Card
+          // 1. Account Section
+          _buildSectionHeader('ACCOUNT'),
           _buildAccountCard(context, user),
           const SizedBox(height: 16),
-
-          // 2. Membership & Pro Plan Card
           _buildMembershipCard(context, ref),
           const SizedBox(height: 24),
 
-          // 2. Data Backup & Migration Section
-          _buildSectionHeader('DATA BACKUP & MIGRATION'),
-          _buildGroupedCard(
-            children: [
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.file_download_outlined,
-                    color: AppColors.primary,
-                  ),
-                ),
-                title: const Text(
-                  'Export Subscriptions',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  'Export ${subscriptionState.subscriptions.length} subscriptions as Excel (.xlsx) or CSV',
-                ),
-                trailing: _isExporting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(
-                        Icons.chevron_right,
-                        size: 20,
-                        color: Colors.grey,
-                      ),
-                onTap: _isExporting ? null : () => _handleExport(context),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.file_upload_outlined,
-                    color: Colors.green,
-                  ),
-                ),
-                title: const Text(
-                  'Import from Excel / CSV',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: const Text(
-                  'Restore subscriptions from Excel (.xlsx) or CSV file',
-                ),
-                trailing: _isImporting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(
-                        Icons.chevron_right,
-                        size: 20,
-                        color: Colors.grey,
-                      ),
-                onTap: _isImporting
-                    ? null
-                    : () => _handleImport(context, user?.id ?? 'local_user'),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.cloud_sync_outlined,
-                    color: Colors.blue,
-                  ),
-                ),
-                title: const Text(
-                  'Cloud Sync Now',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: isGuest
-                    ? const Text('Sign in to sync with Cloud Firestore')
-                    : syncStatusAsync.when(
-                        data: (status) {
-                          if (status.isSyncing) {
-                            return const Text('Syncing in progress...');
-                          }
-                          if (status.lastSyncedAt != null) {
-                            return Text(
-                              'Last synced: ${DateFormat('MMM d, h:mm a').format(status.lastSyncedAt!)}',
-                            );
-                          }
-                          return const Text(
-                            'Tap to synchronize with Cloud Firestore',
-                          );
-                        },
-                        loading: () => const Text('Checking cloud status...'),
-                        error: (_, _) => const Text('Cloud sync offline'),
-                      ),
-                trailing: const Icon(
-                  Icons.refresh,
-                  size: 20,
-                  color: Colors.grey,
-                ),
-                onTap: () async {
-                  HapticFeedback.lightImpact();
-                  if (isGuest) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text(
-                          'Please sign in to enable Cloud Backup & Sync.',
-                        ),
-                        action: SnackBarAction(
-                          label: 'Sign In',
-                          onPressed: () => context.push('/login'),
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-
-                  await ref.read(syncServiceProvider).syncAll();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Cloud sync completed!'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                  }
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // 3. Currency & Budget Intelligence Section
-          _buildSectionHeader('CURRENCY & BUDGET PREFERENCES'),
+          // 2. Preferences Section
+          _buildSectionHeader('PREFERENCES'),
           _buildGroupedCard(
             children: [
               Consumer(
@@ -376,9 +238,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         color: Colors.teal.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
-                        Icons.currency_exchange_outlined,
+                      child: const HeroIcon(
+                        HeroIcons.currencyDollar,
                         color: Colors.teal,
+                        size: 20,
                       ),
                     ),
                     title: const Text(
@@ -425,9 +288,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         color: Colors.amber.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
-                        Icons.track_changes_outlined,
+                      child: const HeroIcon(
+                        HeroIcons.chartBar,
                         color: Colors.amber,
+                        size: 20,
                       ),
                     ),
                     title: const Text(
@@ -439,9 +303,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ? '${CurrencyHelper.formatAmount(budgetLimit, currency: primaryCurrency)} / month target'
                           : 'Set a monthly limit to prevent overspending',
                     ),
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                      size: 20,
+                    trailing: const HeroIcon(
+                      HeroIcons.chevronRight,
+                      size: 18,
                       color: Colors.grey,
                     ),
                     onTap: () {
@@ -456,12 +320,72 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   );
                 },
               ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blueGrey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const HeroIcon(
+                    HeroIcons.creditCard,
+                    color: Colors.blueGrey,
+                    size: 20,
+                  ),
+                ),
+                title: const Text(
+                  'Payment Methods & Shield',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text(
+                  'Manage cards, track expiry & spend breakdown',
+                ),
+                trailing: const HeroIcon(
+                  HeroIcons.chevronRight,
+                  size: 18,
+                  color: Colors.grey,
+                ),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  context.push('/payment-methods');
+                },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const HeroIcon(
+                    HeroIcons.bellAlert,
+                    color: Colors.purple,
+                    size: 20,
+                  ),
+                ),
+                title: const Text(
+                  'Notification Alarms',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('Renewal reminders & trial alerts'),
+                trailing: const HeroIcon(
+                  HeroIcons.chevronRight,
+                  size: 18,
+                  color: Colors.grey,
+                ),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  context.push('/settings/notifications');
+                },
+              ),
             ],
           ),
           const SizedBox(height: 24),
 
-          // 4. Security & Biometrics Section
-          _buildSectionHeader('SECURITY & PRIVACY'),
+          // 3. Data & Security Section
+          _buildSectionHeader('DATA & SECURITY'),
           _buildGroupedCard(
             children: [
               Consumer(
@@ -484,11 +408,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(
-                        lockState.hasFaceId
-                            ? Icons.face_outlined
-                            : Icons.fingerprint,
+                      child: const HeroIcon(
+                        HeroIcons.fingerPrint,
                         color: AppColors.primary,
+                        size: 20,
                       ),
                     ),
                     title: Text(
@@ -500,7 +423,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     value: lockState.isEnabled,
                     onChanged: (bool value) async {
-                      HapticFeedback.selectionClick();
+                      HapticFeedback.lightImpact();
                       final success = await ref
                           .read(appLockNotifierProvider.notifier)
                           .toggleAppLock(value);
@@ -518,81 +441,160 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   );
                 },
               ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // 4. Notification & Preferences Section
-          _buildSectionHeader('PREFERENCES'),
-          _buildGroupedCard(
-            children: [
+              const Divider(height: 1),
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blueGrey.withValues(alpha: 0.1),
+                    color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
-                    Icons.credit_card_outlined,
-                    color: Colors.blueGrey,
+                  child: const HeroIcon(
+                    HeroIcons.arrowDownTray,
+                    color: AppColors.primary,
+                    size: 20,
                   ),
                 ),
                 title: const Text(
-                  'Payment Methods & Shield',
+                  'Export Subscriptions',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-                subtitle: const Text(
-                  'Manage cards, track expiry & spend breakdown',
+                subtitle: Text(
+                  'Export ${subscriptionState.subscriptions.length} subscriptions as Excel (.xlsx) or CSV',
                 ),
-                trailing: const Icon(
-                  Icons.chevron_right,
-                  size: 20,
-                  color: Colors.grey,
-                ),
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  context.push('/payment-methods');
-                },
+                trailing: _isExporting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const HeroIcon(
+                        HeroIcons.chevronRight,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
+                onTap: _isExporting ? null : () => _handleExport(context),
               ),
               const Divider(height: 1),
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.purple.withValues(alpha: 0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
-                    Icons.notifications_active_outlined,
-                    color: Colors.purple,
+                  child: const HeroIcon(
+                    HeroIcons.arrowUpTray,
+                    color: Colors.green,
+                    size: 20,
                   ),
                 ),
                 title: const Text(
-                  'Notification Alarms',
+                  'Import from Excel / CSV',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-                subtitle: const Text('Renewal reminders & trial alerts'),
-                trailing: const Icon(
-                  Icons.chevron_right,
-                  size: 20,
+                subtitle: const Text(
+                  'Restore subscriptions from Excel (.xlsx) or CSV file',
+                ),
+                trailing: _isImporting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const HeroIcon(
+                        HeroIcons.chevronRight,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
+                onTap: _isImporting
+                    ? null
+                    : () => _handleImport(context, user?.id ?? 'local_user'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const HeroIcon(
+                    HeroIcons.cloudArrowUp,
+                    color: Colors.blue,
+                    size: 20,
+                  ),
+                ),
+                title: const Text(
+                  'Cloud Sync Now',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: isGuest
+                    ? const Text('Sign in to sync with Cloud Firestore')
+                    : syncStatusAsync.when(
+                        data: (status) {
+                          if (status.isSyncing) {
+                            return const Text('Syncing in progress...');
+                          }
+                          if (status.lastSyncedAt != null) {
+                            return Text(
+                              'Last synced: ${DateFormat('MMM d, h:mm a').format(status.lastSyncedAt!)}',
+                            );
+                          }
+                          return const Text(
+                            'Tap to synchronize with Cloud Firestore',
+                          );
+                        },
+                        loading: () => const Text('Checking cloud status...'),
+                        error: (_, _) => const Text('Cloud sync offline'),
+                      ),
+                trailing: const HeroIcon(
+                  HeroIcons.arrowPath,
+                  size: 18,
                   color: Colors.grey,
                 ),
-                onTap: () {
+                onTap: () async {
                   HapticFeedback.lightImpact();
-                  context.push('/settings/notifications');
+                  if (isGuest) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text(
+                          'Please sign in to enable Cloud Backup & Sync.',
+                        ),
+                        action: SnackBarAction(
+                          label: 'Sign In',
+                          onPressed: () => context.push('/login'),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  await ref.read(syncServiceProvider).syncAll();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Cloud sync completed!'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                  }
                 },
               ),
             ],
           ),
           const SizedBox(height: 24),
 
-          // 5. About & Version
-          _buildSectionHeader('ABOUT SUBGUARD'),
+          // 4. About Section
+          _buildSectionHeader('ABOUT'),
           _buildGroupedCard(
             children: [
               const ListTile(
-                leading: Icon(Icons.info_outline, color: Colors.grey),
+                leading: HeroIcon(
+                  HeroIcons.informationCircle,
+                  color: Colors.grey,
+                  size: 20,
+                ),
                 title: Text(
                   'Version',
                   style: TextStyle(fontWeight: FontWeight.w600),
@@ -604,9 +606,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const Icon(
-                  Icons.explore_outlined,
+                leading: const HeroIcon(
+                  HeroIcons.sparkles,
                   color: AppColors.primary,
+                  size: 20,
                 ),
                 title: const Text(
                   'Replay Interactive Tour',
@@ -615,9 +618,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: const Text(
                   'Review feature walkthrough & capabilities',
                 ),
-                trailing: const Icon(
-                  Icons.chevron_right,
-                  size: 20,
+                trailing: const HeroIcon(
+                  HeroIcons.chevronRight,
+                  size: 18,
                   color: Colors.grey,
                 ),
                 onTap: () {
@@ -627,17 +630,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const Icon(
-                  Icons.privacy_tip_outlined,
+                leading: const HeroIcon(
+                  HeroIcons.shieldCheck,
                   color: Colors.grey,
+                  size: 20,
                 ),
                 title: const Text(
                   'Privacy Policy',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-                trailing: const Icon(
-                  Icons.chevron_right,
-                  size: 20,
+                trailing: const HeroIcon(
+                  HeroIcons.chevronRight,
+                  size: 18,
                   color: Colors.grey,
                 ),
                 onTap: () {
@@ -647,17 +651,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const Icon(
-                  Icons.description_outlined,
+                leading: const HeroIcon(
+                  HeroIcons.documentText,
                   color: Colors.grey,
+                  size: 20,
                 ),
                 title: const Text(
                   'Terms of Service',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-                trailing: const Icon(
-                  Icons.chevron_right,
-                  size: 20,
+                trailing: const HeroIcon(
+                  HeroIcons.chevronRight,
+                  size: 18,
                   color: Colors.grey,
                 ),
                 onTap: () {
@@ -680,13 +685,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              icon: const Icon(Icons.logout),
+              icon: const HeroIcon(HeroIcons.arrowRightOnRectangle, size: 18),
               label: const Text(
                 'Sign Out',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               onPressed: () {
-                HapticFeedback.heavyImpact();
+                HapticFeedback.mediumImpact();
                 _showSignOutConfirmation(context, ref);
               },
             ),
@@ -981,14 +986,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
       ),
       child: Material(
         color: Colors.white,

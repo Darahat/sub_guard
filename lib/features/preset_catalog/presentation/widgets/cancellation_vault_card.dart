@@ -191,30 +191,54 @@ class _CancellationVaultCardState extends State<CancellationVaultCard> {
 
             // 3. Direct Action URL Button
             if (targetUrl != null && targetUrl.isNotEmpty) ...[
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
+              InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _launchUrl(targetUrl);
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 12,
                     horizontal: 16,
+                    vertical: 14,
                   ),
-                  backgroundColor: widget.preset.brandColor.withValues(
-                    alpha: 0.95,
+                  decoration: BoxDecoration(
+                    color: widget.preset.brandColor.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: widget.preset.brandColor.withValues(alpha: 0.3),
+                    ),
                   ),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.public,
+                        color: widget.preset.brandColor,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _selectedPlatform == BillingPlatform.web
+                              ? 'Go to ${widget.preset.name} Official Portal'
+                              : 'Open ${_selectedPlatform.label} Subscriptions',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.open_in_new,
+                        color: widget.preset.brandColor,
+                        size: 18,
+                      ),
+                    ],
                   ),
                 ),
-                icon: const Icon(Icons.open_in_new, size: 18),
-                label: Text(
-                  _selectedPlatform == BillingPlatform.web
-                      ? 'Open ${widget.preset.name} Official Portal'
-                      : 'Open ${_selectedPlatform.label} Subscriptions',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                onPressed: () => _launchUrl(targetUrl),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
             ],
 
             // 4. Step-by-Step Guided Instructions
@@ -226,41 +250,55 @@ class _CancellationVaultCardState extends State<CancellationVaultCard> {
                   fontSize: 13,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               ...method.steps.asMap().entries.map((entry) {
                 final stepIndex = entry.key + 1;
                 final stepText = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
+                final isLast = entry.key == method.steps.length - 1;
+                return IntrinsicHeight(
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Container(
-                        width: 18,
-                        height: 18,
-                        margin: const EdgeInsets.only(top: 2, right: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$stepIndex',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                      Column(
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: const BoxDecoration(
                               color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                '$stepIndex',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                          if (!isLast)
+                            Expanded(
+                              child: Container(
+                                width: 2,
+                                color: AppColors.primary.withValues(alpha: 0.2),
+                              ),
+                            ),
+                        ],
                       ),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          stepText,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade800,
-                            height: 1.35,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0, top: 2),
+                          child: Text(
+                            stepText,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
+                              height: 1.4,
+                            ),
                           ),
                         ),
                       ),
@@ -268,7 +306,6 @@ class _CancellationVaultCardState extends State<CancellationVaultCard> {
                   ),
                 );
               }),
-              const SizedBox(height: 14),
             ],
 
             // 5. Mark as Cancelled Button

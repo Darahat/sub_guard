@@ -121,7 +121,72 @@ class AppTheme {
   }
 
   static ThemeData get darkTheme {
-    // For future dark mode implementation
-    return ThemeData.dark();
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+
+      // 1. Base Canvas (Zinc-950)
+      scaffoldBackgroundColor: AppColors.darkCanvas,
+
+      colorScheme: const ColorScheme.dark(
+        primary: AppColors.primary,
+        secondary: AppColors.accent,
+        // 2. Grouped Surface (Zinc-900)
+        surface: AppColors.darkSurface,
+        error: AppColors.darkError,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: Colors.white,
+        onError: Colors.white,
+      ),
+
+      appBarTheme: const AppBarTheme(
+        elevation: 0,
+        centerTitle: false,
+        backgroundColor: AppColors.darkCanvas,
+        foregroundColor: Colors.white,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+        iconTheme: IconThemeData(color: Colors.white),
+      ),
+
+      // Ban card stacking shadows and use 4-tier elevation outline
+      cardTheme: CardThemeData(
+        color: AppColors.darkSurfaceElevated,
+        elevation: 0, // No drop shadows
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: AppColors.darkOutline.withValues(
+              alpha: 0.15,
+            ), // 15% opacity subtle outline
+          ),
+        ),
+      ),
+
+      // 3. Interactive Elements (Zinc-800)
+      inputDecorationTheme: InputDecorationTheme(
+        fillColor: AppColors.darkInteractive,
+        filled: true,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppColors.darkOutline.withValues(
+              alpha: 0.20,
+            ), // 20% opacity subtle outline
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppColors.darkOutline.withValues(alpha: 0.20),
+          ),
+        ),
+      ),
+    );
   }
 }

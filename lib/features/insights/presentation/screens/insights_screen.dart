@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/shimmer_loading.dart';
 import '../../../analytics/presentation/widgets/opportunity_cost_card.dart';
 import '../../../analytics/presentation/widgets/savings_opportunity_card.dart';
 import '../../../analytics/presentation/widgets/spending_projection_card.dart';
@@ -61,7 +63,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
         title: const Text('Spending Analytics'),
         actions: [
           PopupMenuButton<InsightDateRange>(
-            icon: const Icon(Icons.calendar_month_outlined),
+            icon: const HeroIcon(HeroIcons.calendar, size: 20),
             onSelected: (range) {
               HapticFeedback.selectionClick();
               ref.read(insightNotifierProvider.notifier).changeDateRange(range);
@@ -72,8 +74,8 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
                 child: Row(
                   children: [
                     if (range == insightState.dateRange)
-                      const Icon(
-                        Icons.check,
+                      const HeroIcon(
+                        HeroIcons.check,
                         size: 16,
                         color: AppColors.primary,
                       )
@@ -87,7 +89,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
             }).toList(),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const HeroIcon(HeroIcons.arrowPath, size: 20),
             onPressed: () {
               HapticFeedback.lightImpact();
               ref.read(insightNotifierProvider.notifier).refresh();
@@ -97,62 +99,67 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
+            Tab(text: 'Overview', icon: HeroIcon(HeroIcons.chartBar, size: 20)),
             Tab(
-              text: 'Overview',
-              icon: Icon(Icons.insights_outlined, size: 20),
+              text: 'Outlook',
+              icon: HeroIcon(HeroIcons.arrowTrendingUp, size: 20),
             ),
-            Tab(text: 'Outlook', icon: Icon(Icons.timeline_rounded, size: 20)),
             Tab(
               text: 'Trends',
-              icon: Icon(Icons.show_chart_outlined, size: 20),
+              icon: HeroIcon(HeroIcons.presentationChartLine, size: 20),
             ),
             Tab(
               text: 'Categories',
-              icon: Icon(Icons.pie_chart_outline, size: 20),
+              icon: HeroIcon(HeroIcons.chartPie, size: 20),
             ),
           ],
         ),
       ),
-      body: insightState.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : insightState.error != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: 48,
-                    color: AppColors.error,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(insightState.error!),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: () {
-                      HapticFeedback.mediumImpact();
-                      ref.read(insightNotifierProvider.notifier).refresh();
-                    },
-                    child: const Text('Retry'),
-                  ),
-                ],
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 240),
+        switchInCurve: Curves.easeInOutCubic,
+        switchOutCurve: Curves.easeInOutCubic,
+        child: insightState.isLoading
+            ? const InsightsSkeletonLoader()
+            : insightState.error != null
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: AppColors.error,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(insightState.error!),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () {
+                        HapticFeedback.mediumImpact();
+                        ref.read(insightNotifierProvider.notifier).refresh();
+                      },
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            : RefreshIndicator(
+                onRefresh: () async {
+                  HapticFeedback.mediumImpact();
+                  await ref.read(insightNotifierProvider.notifier).refresh();
+                },
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildOverviewTab(insightState),
+                    _buildOutlookTab(insightState),
+                    _buildTrendsTab(insightState),
+                    _buildCategoriesTab(insightState),
+                  ],
+                ),
               ),
-            )
-          : RefreshIndicator(
-              onRefresh: () async {
-                HapticFeedback.mediumImpact();
-                await ref.read(insightNotifierProvider.notifier).refresh();
-              },
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildOverviewTab(insightState),
-                  _buildOutlookTab(insightState),
-                  _buildTrendsTab(insightState),
-                  _buildCategoriesTab(insightState),
-                ],
-              ),
-            ),
+      ),
     );
   }
 
@@ -245,14 +252,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -402,14 +402,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,14 +453,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,14 +498,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -547,14 +526,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen>
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

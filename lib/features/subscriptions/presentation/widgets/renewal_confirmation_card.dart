@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:heroicons/heroicons.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -73,9 +74,7 @@ class _RenewalConfirmationCardState
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '${subscription.serviceName} marked as cancelled.',
-            ),
+            content: Text('${subscription.serviceName} marked as cancelled.'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -176,10 +175,15 @@ class _RenewalConfirmationCardState
                       selectedColor: AppColors.primary.withValues(alpha: 0.15),
                       labelStyle: TextStyle(
                         fontSize: 11,
-                        color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.textPrimary,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
-                      onSelected: (_) => setModalState(() => selectedReason = reason),
+                      onSelected: (_) =>
+                          setModalState(() => selectedReason = reason),
                     );
                   }).toList(),
                 ),
@@ -207,7 +211,9 @@ class _RenewalConfirmationCardState
       final newPrice = result['amount'] as double;
       final reason = result['reason'] as PriceChangeReason;
 
-      await ref.read(subscriptionNotifierProvider.notifier).confirmRenewal(
+      await ref
+          .read(subscriptionNotifierProvider.notifier)
+          .confirmRenewal(
             subscription: subscription,
             newAmount: newPrice,
             priceChangeReason: reason,
@@ -245,7 +251,9 @@ class _RenewalConfirmationCardState
     }
 
     final currentSub = dueSubscriptions[_currentIndex];
-    final formattedDue = DateFormat('MMM d, yyyy').format(currentSub.nextBillingDate);
+    final formattedDue = DateFormat(
+      'MMM d, yyyy',
+    ).format(currentSub.nextBillingDate);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -290,7 +298,10 @@ class _RenewalConfirmationCardState
                 ),
                 if (dueSubscriptions.length > 1)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.amber.shade200,
                       borderRadius: BorderRadius.circular(10),
@@ -364,85 +375,72 @@ class _RenewalConfirmationCardState
                   const Divider(height: 1),
                   const SizedBox(height: 10),
 
-                  // Question & 3 Action Buttons
-                  const Center(
-                    child: Text(
-                      'Did this subscription renew as expected?',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
+                  // Question & Micro Action Buttons
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        flex: 3,
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.success,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          icon: const Icon(Icons.check, size: 16),
-                          label: const Text(
-                            '✓ Renewed',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          onPressed: () => _handleConfirmRenewal(currentSub),
+                      const Text(
+                        'Renewed as expected?',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        flex: 3,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.error,
-                            side: BorderSide(color: Colors.red.shade200),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                      Row(
+                        children: [
+                          _buildMicroButton(
+                            icon: HeroIcons.xMark,
+                            color: AppColors.error,
+                            onTap: () => _handleDidNotRenew(currentSub),
                           ),
-                          onPressed: () => _handleDidNotRenew(currentSub),
-                          child: const Text(
-                            '✕ Didn\'t Renew',
-                            style: TextStyle(fontSize: 12),
+                          const SizedBox(width: 8),
+                          _buildMicroButton(
+                            icon: HeroIcons.pencilSquare,
+                            color: Colors.grey.shade700,
+                            onTap: () => _handlePriceChanged(currentSub),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        flex: 2,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.grey.shade700,
-                            side: BorderSide(color: Colors.grey.shade300),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                          const SizedBox(width: 8),
+                          _buildMicroButton(
+                            icon: HeroIcons.check,
+                            color: AppColors.success,
+                            isFilled: true,
+                            onTap: () => _handleConfirmRenewal(currentSub),
                           ),
-                          onPressed: () => _handlePriceChanged(currentSub),
-                          child: const Text(
-                            '✏️ Price',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 16),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMicroButton({
+    required HeroIcons icon,
+    required Color color,
+    required VoidCallback onTap,
+    bool isFilled = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isFilled ? color : color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: HeroIcon(
+          icon,
+          size: 16,
+          color: isFilled ? Colors.white : color,
+          style: isFilled ? HeroIconStyle.solid : HeroIconStyle.outline,
         ),
       ),
     );

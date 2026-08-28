@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/currency/currency_converter.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/currency_helper.dart';
 import '../../../../core/utils/date_helper.dart';
 import '../../../budget/presentation/providers/budget_providers.dart';
@@ -23,8 +25,10 @@ class SubscriptionCard extends ConsumerWidget {
 
   void _showPaymentConfirmationDialog(BuildContext context, WidgetRef ref) {
     HapticFeedback.lightImpact();
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => PaymentConfirmationDialog(
         subscription: subscription,
         onConfirmedCharge: () async {
@@ -89,10 +93,10 @@ class SubscriptionCard extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            Icon(
-              isPaused ? Icons.play_arrow : Icons.pause,
+            HeroIcon(
+              isPaused ? HeroIcons.play : HeroIcons.pause,
               color: Colors.white,
-              size: 26,
+              size: 24,
             ),
             const SizedBox(width: 8),
             Text(
@@ -126,7 +130,7 @@ class SubscriptionCard extends ConsumerWidget {
               ),
             ),
             SizedBox(width: 8),
-            Icon(Icons.delete_outline, color: Colors.white, size: 26),
+            HeroIcon(HeroIcons.trash, color: Colors.white, size: 24),
           ],
         ),
       ),
@@ -161,7 +165,7 @@ class SubscriptionCard extends ConsumerWidget {
           return false; // Don't dismiss from tree
         } else {
           // Delete action with confirmation
-          HapticFeedback.heavyImpact();
+          HapticFeedback.mediumImpact();
           return await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
@@ -266,8 +270,8 @@ class SubscriptionCard extends ConsumerWidget {
                           subscription.amount,
                           currency: subscription.currency,
                         ),
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
+                        style: AppTypography.cardFinancial.copyWith(
+                          fontSize: 22,
                           color: theme.colorScheme.onSurface,
                         ),
                       ),
@@ -318,17 +322,27 @@ class SubscriptionCard extends ConsumerWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.purple.shade50,
+                            color: Colors.purple.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.purple.shade200),
                           ),
-                          child: Text(
-                            '👥 My share: ${CurrencyHelper.formatAmount(subscription.effectivePersonalAmount, currency: subscription.currency)}',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.purple.shade800,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              HeroIcon(
+                                HeroIcons.userGroup,
+                                size: 12,
+                                color: Colors.purple.shade700,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'My share: ${CurrencyHelper.formatAmount(subscription.effectivePersonalAmount, currency: subscription.currency)}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.purple.shade700,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       if (subscription.hasContract)
@@ -338,17 +352,27 @@ class SubscriptionCard extends ConsumerWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.amber.shade50,
+                            color: Colors.amber.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.amber.shade200),
                           ),
-                          child: Text(
-                            '🔒 ${subscription.contractCommitment!.cancellationNoticeDays}d Notice (Deadline: ${DateHelper.formatDisplayDate(subscription.contractCommitment!.cancellationDeadline)})',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.amber.shade900,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              HeroIcon(
+                                HeroIcons.shieldCheck,
+                                size: 12,
+                                color: Colors.amber.shade900,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${subscription.contractCommitment!.cancellationNoticeDays}d Notice (Deadline: ${DateHelper.formatDisplayDate(subscription.contractCommitment!.cancellationDeadline)})',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber.shade900,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       if (subscription.paymentMethodId != null) ...[
@@ -368,17 +392,14 @@ class SubscriptionCard extends ConsumerWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.blueGrey.shade50,
+                              color: Colors.blueGrey.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: Colors.blueGrey.shade200,
-                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  method.type.icon,
+                                HeroIcon(
+                                  method.type.heroIcon,
                                   size: 11,
                                   color: Colors.blueGrey.shade800,
                                 ),
@@ -388,7 +409,7 @@ class SubscriptionCard extends ConsumerWidget {
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.blueGrey.shade900,
+                                    color: Colors.blueGrey.shade800,
                                   ),
                                 ),
                               ],
@@ -403,8 +424,8 @@ class SubscriptionCard extends ConsumerWidget {
                   // Bottom Row: Next Billing Date & Expiring / Renewal Check-in Pill
                   Row(
                     children: [
-                      Icon(
-                        Icons.calendar_today_outlined,
+                      HeroIcon(
+                        HeroIcons.calendar,
                         size: 15,
                         color: subscription.daysUntilBilling <= 0
                             ? AppColors.error
@@ -457,8 +478,8 @@ class SubscriptionCard extends ConsumerWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  Icons.check_circle_outline,
+                                HeroIcon(
+                                  HeroIcons.checkCircle,
                                   size: 13,
                                   color: subscription.daysUntilBilling <= 0
                                       ? AppColors.error

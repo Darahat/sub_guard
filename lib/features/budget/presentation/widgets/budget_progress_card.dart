@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/currency_helper.dart';
 import '../../domain/entities/budget_health.dart';
 import '../providers/budget_providers.dart';
@@ -77,7 +79,14 @@ class BudgetProgressCard extends ConsumerWidget {
               autofocus: true,
               decoration: InputDecoration(
                 labelText: 'Monthly Target ($primaryCurrency)',
-                prefixIcon: const Icon(Icons.track_changes_outlined),
+                prefixIcon: const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: HeroIcon(
+                    HeroIcons.chartBar,
+                    size: 20,
+                    color: Colors.grey,
+                  ),
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -143,8 +152,8 @@ class BudgetProgressCard extends ConsumerWidget {
                 color: AppColors.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.track_changes_outlined,
+              child: const HeroIcon(
+                HeroIcons.chartBar,
                 color: AppColors.primary,
                 size: 20,
               ),
@@ -193,22 +202,22 @@ class BudgetProgressCard extends ConsumerWidget {
     Color healthColor;
     Color healthBgColor;
     String insightText;
-    IconData healthIcon;
+    HeroIcons healthHeroIcon;
 
     switch (evaluation.health) {
       case BudgetHealth.onTrack:
         healthColor = AppColors.success;
         healthBgColor = Colors.green.shade50;
         insightText =
-            '🎉 You\'re ${CurrencyHelper.formatAmount(evaluation.remainingBudget, currency: evaluation.primaryCurrency)} under budget ($percentageText% used)';
-        healthIcon = Icons.check_circle_outline;
+            '${CurrencyHelper.formatAmount(evaluation.remainingBudget, currency: evaluation.primaryCurrency)} remaining ($percentageText% used)';
+        healthHeroIcon = HeroIcons.checkCircle;
         break;
       case BudgetHealth.nearLimit:
         healthColor = AppColors.warning;
         healthBgColor = Colors.amber.shade50;
         insightText =
-            '⚠️ Approaching limit (${CurrencyHelper.formatAmount(evaluation.remainingBudget, currency: evaluation.primaryCurrency)} remaining)';
-        healthIcon = Icons.warning_amber_rounded;
+            'Approaching monthly target (${CurrencyHelper.formatAmount(evaluation.remainingBudget, currency: evaluation.primaryCurrency)} remaining)';
+        healthHeroIcon = HeroIcons.exclamationTriangle;
         break;
       case BudgetHealth.overBudget:
         healthColor = AppColors.error;
@@ -216,8 +225,8 @@ class BudgetProgressCard extends ConsumerWidget {
         final overAmount =
             evaluation.totalMonthlySpent - (evaluation.budgetLimit ?? 0);
         insightText =
-            '🚨 ${CurrencyHelper.formatAmount(overAmount, currency: evaluation.primaryCurrency)} over monthly budget!';
-        healthIcon = Icons.error_outline;
+            '${CurrencyHelper.formatAmount(overAmount, currency: evaluation.primaryCurrency)} over monthly budget';
+        healthHeroIcon = HeroIcons.exclamationCircle;
         break;
     }
 
@@ -250,12 +259,7 @@ class BudgetProgressCard extends ConsumerWidget {
             children: [
               const Text(
                 'MONTHLY SPENDING BUDGET',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.8,
-                  color: AppColors.textSecondary,
-                ),
+                style: AppTypography.sectionOverhead,
               ),
               InkWell(
                 onTap: () =>
@@ -276,7 +280,7 @@ class BudgetProgressCard extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(healthIcon, size: 13, color: healthColor),
+                      HeroIcon(healthHeroIcon, size: 13, color: healthColor),
                       const SizedBox(width: 4),
                       Text(
                         evaluation.health.label,
@@ -286,8 +290,8 @@ class BudgetProgressCard extends ConsumerWidget {
                           color: healthColor,
                         ),
                       ),
-                      const SizedBox(width: 2),
-                      Icon(Icons.edit, size: 10, color: healthColor),
+                      const SizedBox(width: 3),
+                      HeroIcon(HeroIcons.pencil, size: 10, color: healthColor),
                     ],
                   ),
                 ),
@@ -306,9 +310,8 @@ class BudgetProgressCard extends ConsumerWidget {
                   evaluation.totalMonthlySpent,
                   currency: evaluation.primaryCurrency,
                 ),
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                style: AppTypography.cardFinancial.copyWith(
+                  fontSize: 24,
                   color: evaluation.isOverBudget
                       ? AppColors.error
                       : AppColors.textPrimary,
@@ -317,9 +320,7 @@ class BudgetProgressCard extends ConsumerWidget {
               const SizedBox(width: 6),
               Text(
                 '/ ${CurrencyHelper.formatAmount(evaluation.budgetLimit ?? 0, currency: evaluation.primaryCurrency)}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                style: AppTypography.compactFinancial.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),

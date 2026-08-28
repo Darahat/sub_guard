@@ -1,11 +1,14 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:heroicons/heroicons.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_helper.dart';
 import '../../../budget/presentation/providers/budget_providers.dart';
+import '../../../subscriptions/domain/entities/subscription_entity.dart';
 import '../../../subscriptions/presentation/providers/subscription_notifier.dart';
 import '../../domain/entities/payment_method_entity.dart';
 import '../../domain/enums/payment_method_type.dart';
@@ -38,9 +41,16 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
 
   void _showAddEditDialog([PaymentMethodEntity? existing]) {
     HapticFeedback.lightImpact();
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (_) => _AddEditPaymentMethodDialog(existing: existing),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: _AddEditPaymentMethodDialog(existing: existing),
+      ),
     );
   }
 
@@ -52,7 +62,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
         title: const Text('Delete Payment Method?'),
         content: Text(
           linkedCount > 0
-              ? '⚠️ "${method.displayLabel}" is linked to $linkedCount active subscription(s).\n\nDeleting it will remove the payment method assignment from those subscriptions.'
+              ? '"${method.displayLabel}" is linked to $linkedCount active subscription(s).\n\nDeleting it will remove the payment method assignment from those subscriptions.'
               : 'Are you sure you want to remove "${method.displayLabel}"?',
         ),
         actions: [
@@ -75,6 +85,58 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
     );
   }
 
+  void _showActionSheet(
+    PaymentMethodEntity method,
+    List<SubscriptionEntity> linkedSubs,
+  ) {
+    HapticFeedback.lightImpact();
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text(method.displayLabel),
+        message: Text('${linkedSubs.length} linked subscriptions'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _showAddEditDialog(method);
+            },
+            child: const Text('Edit Payment Method'),
+          ),
+          if (linkedSubs.isNotEmpty)
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(context);
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => ReassignPaymentMethodSheet(
+                    currentPaymentMethod: method,
+                    affectedSubscriptions: linkedSubs,
+                  ),
+                );
+              },
+              child: const Text('Reassign Subscriptions'),
+            ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(context);
+              _confirmDelete(method, linkedSubs.length);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(paymentMethodNotifierProvider);
@@ -90,16 +152,24 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(icon: Icon(Icons.credit_card), text: 'Payment Methods'),
-            Tab(icon: Icon(Icons.pie_chart_outline), text: 'Spend Breakdown'),
+            Tab(
+              icon: HeroIcon(HeroIcons.creditCard, size: 20),
+              text: 'Payment Methods',
+            ),
+            Tab(
+              icon: HeroIcon(HeroIcons.chartPie, size: 20),
+              text: 'Spend Breakdown',
+            ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddEditDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Payment Method'),
-      ),
+      floatingActionButton: state.paymentMethods.isEmpty
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _showAddEditDialog(),
+              icon: const HeroIcon(HeroIcons.plus, size: 20),
+              label: const Text('Add Payment Method'),
+            ),
       body: TabBarView(
         controller: _tabController,
         children: [
@@ -119,200 +189,158 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
                     final status = method.evaluateStatus(now);
                     final isExpiring = status.isActionable;
 
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
+                    return AspectRatio(
+                      aspectRatio: 1.586,
+                      child: InkWell(
+                        onTap: () => _showActionSheet(method, linkedSubs),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isExpiring
-                              ? (status == PaymentExpiryStatus.expired
-                                    ? Colors.red.shade300
-                                    : Colors.amber.shade300)
-                              : Colors.grey.withValues(alpha: 0.15),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(
-                                    alpha: 0.1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  method.type.icon,
-                                  color: AppColors.primary,
-                                  size: 22,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            method.displayLabel,
-                                            style: const TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        if (method.isDefault) ...[
-                                          const SizedBox(width: 6),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.primary
-                                                  .withValues(alpha: 0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                            child: const Text(
-                                              'Default',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
-                                                color: AppColors.primary,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      method.formattedExpiry != null
-                                          ? 'Expires ${method.formattedExpiry}'
-                                          : method.type.label,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: isExpiring
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                isExpiring
+                                    ? (status == PaymentExpiryStatus.expired
+                                          ? Colors.red.shade900
+                                          : Colors.amber.shade900)
+                                    : AppColors.primary,
+                                isExpiring
+                                    ? (status == PaymentExpiryStatus.expired
+                                          ? Colors.red.shade700
+                                          : Colors.amber.shade700)
+                                    : AppColors.primary.withValues(alpha: 0.8),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    (isExpiring
                                             ? (status ==
                                                       PaymentExpiryStatus
                                                           .expired
-                                                  ? AppColors.error
-                                                  : Colors.amber.shade900)
-                                            : AppColors.textSecondary,
-                                        fontWeight: isExpiring
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                      ),
-                                    ),
-                                  ],
+                                                  ? Colors.red.shade300
+                                                  : Colors.amber.shade300)
+                                            : AppColors.primary)
+                                        .withValues(alpha: 0.4),
+                                blurRadius: 16,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            children: [
+                              // Subtle background pattern (shimmer illusion)
+                              Positioned(
+                                right: -40,
+                                top: -40,
+                                child: Container(
+                                  width: 150,
+                                  height: 150,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white.withValues(alpha: 0.1),
+                                  ),
                                 ),
                               ),
-                              PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_vert, size: 20),
-                                onSelected: (val) {
-                                  if (val == 'edit') {
-                                    _showAddEditDialog(method);
-                                  } else if (val == 'reassign') {
-                                    showModalBottomSheet(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      backgroundColor: Colors.transparent,
-                                      builder: (_) =>
-                                          ReassignPaymentMethodSheet(
-                                            currentPaymentMethod: method,
-                                            affectedSubscriptions: linkedSubs,
-                                          ),
-                                    );
-                                  } else if (val == 'delete') {
-                                    _confirmDelete(method, linkedSubs.length);
-                                  }
-                                },
-                                itemBuilder: (_) => [
-                                  const PopupMenuItem(
-                                    value: 'edit',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.edit_outlined, size: 16),
-                                        SizedBox(width: 8),
-                                        Text('Edit Method'),
-                                      ],
-                                    ),
+                              Positioned(
+                                left: -20,
+                                bottom: -20,
+                                child: Container(
+                                  width: 100,
+                                  height: 100,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white.withValues(alpha: 0.1),
                                   ),
-                                  if (linkedSubs.isNotEmpty)
-                                    const PopupMenuItem(
-                                      value: 'reassign',
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.swap_horiz, size: 16),
-                                          SizedBox(width: 8),
-                                          Text('Reassign Subscriptions'),
-                                        ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      HeroIcon(
+                                        method.type.heroIcon,
+                                        color: Colors.white,
+                                        size: 32,
                                       ),
-                                    ),
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.delete_outline,
-                                          color: AppColors.error,
-                                          size: 16,
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Delete',
-                                          style: TextStyle(
-                                            color: AppColors.error,
+                                      if (method.isDefault)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.2,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'DEFAULT',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
                                           ),
                                         ),
-                                      ],
+                                    ],
+                                  ),
+                                  Text(
+                                    method.displayLabel,
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                      letterSpacing: 1.2,
                                     ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        method.formattedExpiry != null
+                                            ? 'EXPIRES ${method.formattedExpiry}'
+                                            : method.type.label.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.8,
+                                          ),
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 1.5,
+                                        ),
+                                      ),
+                                      if (linkedSubs.isNotEmpty)
+                                        Text(
+                                          '${linkedSubs.length} SUBS',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.8,
+                                            ),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ],
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
-                          const Divider(height: 1),
-                          const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '${linkedSubs.length} linked subscription(s)',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                              if (linkedSubs.isNotEmpty)
-                                Text(
-                                  '${CurrencyHelper.formatAmount(linkedSubs.fold(0.0, (sum, s) => sum + s.monthlyCost), currency: primaryCurrency)}/mo',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
+                        ),
                       ),
                     );
                   },
@@ -326,7 +354,9 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
             itemBuilder: (context, index) {
               final item = breakdown[index];
               final label = item.paymentMethod?.displayLabel ?? 'Unassigned';
-              final icon = item.paymentMethod?.type.icon ?? Icons.help_outline;
+              final heroIcon =
+                  item.paymentMethod?.type.heroIcon ??
+                  HeroIcons.questionMarkCircle;
 
               return Container(
                 padding: const EdgeInsets.all(16),
@@ -342,7 +372,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
                   children: [
                     Row(
                       children: [
-                        Icon(icon, size: 18, color: AppColors.primary),
+                        HeroIcon(heroIcon, size: 18, color: AppColors.primary),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -416,8 +446,8 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
                 color: AppColors.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.credit_card_outlined,
+              child: const HeroIcon(
+                HeroIcons.creditCard,
                 size: 48,
                 color: AppColors.primary,
               ),
@@ -436,7 +466,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
             const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: () => _showAddEditDialog(),
-              icon: const Icon(Icons.add),
+              icon: const HeroIcon(HeroIcons.plus, size: 18),
               label: const Text('Add Payment Method'),
             ),
           ],
@@ -525,127 +555,217 @@ class _AddEditPaymentMethodDialogState
 
   @override
   Widget build(BuildContext context) {
-    final currentYear = DateTime.now().year;
     final isEditing = widget.existing != null;
+    final currentYear = DateTime.now().year;
 
-    return AlertDialog(
-      title: Text(isEditing ? 'Edit Payment Method' : 'Add Payment Method'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Method Name *',
-                  hintText: 'e.g. Personal Visa, Work Amex',
-                  prefixIcon: Icon(Icons.label_outline),
-                ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Name is required' : null,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<PaymentMethodType>(
-                initialValue: _selectedType,
-                decoration: const InputDecoration(
-                  labelText: 'Payment Type',
-                  prefixIcon: Icon(Icons.category_outlined),
-                ),
-                items: PaymentMethodType.values.map((t) {
-                  return DropdownMenuItem(
-                    value: t,
-                    child: Row(
-                      children: [
-                        Icon(t.icon, size: 18),
-                        const SizedBox(width: 8),
-                        Text(t.label),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedType = val);
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _last4Controller,
-                keyboardType: TextInputType.number,
-                maxLength: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Last 4 Digits (Optional)',
-                  hintText: '4821',
-                  prefixIcon: Icon(Icons.pin_outlined),
-                  counterText: '',
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              if (_selectedType.supportsExpiry) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<int>(
-                        initialValue: _expiryMonth,
+            ),
+            Text(
+              isEditing ? 'Edit Payment Method' : 'Add Payment Method',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: _nameController,
                         decoration: const InputDecoration(
-                          labelText: 'Exp Month',
+                          labelText: 'Method Name / Nickname *',
+                          hintText: 'e.g., Chase Sapphire, Work Amex',
+                          prefixIcon: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: HeroIcon(
+                              HeroIcons.pencilSquare,
+                              size: 20,
+                              color: Colors.grey,
+                            ),
+                          ),
                         ),
-                        items: List.generate(12, (i) => i + 1).map((m) {
+                        validator: (val) => val == null || val.trim().isEmpty
+                            ? 'Name is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<PaymentMethodType>(
+                        initialValue: _selectedType,
+                        decoration: const InputDecoration(
+                          labelText: 'Payment Type',
+                          prefixIcon: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: HeroIcon(
+                              HeroIcons.squares2x2,
+                              size: 20,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                        items: PaymentMethodType.values.map((t) {
                           return DropdownMenuItem(
-                            value: m,
-                            child: Text(m.toString().padLeft(2, '0')),
+                            value: t,
+                            child: Row(
+                              children: [
+                                HeroIcon(
+                                  t.heroIcon,
+                                  size: 18,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(t.label),
+                              ],
+                            ),
                           );
                         }).toList(),
-                        onChanged: (v) => setState(() => _expiryMonth = v),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedType = val);
+                        },
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<int>(
-                        initialValue: _expiryYear,
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _last4Controller,
+                        keyboardType: TextInputType.number,
+                        maxLength: 4,
                         decoration: const InputDecoration(
-                          labelText: 'Exp Year',
+                          labelText: 'Last 4 Digits (Optional)',
+                          hintText: '4821',
+                          prefixIcon: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: HeroIcon(
+                              HeroIcons.hashtag,
+                              size: 20,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          counterText: '',
                         ),
-                        items: List.generate(15, (i) => currentYear + i).map((
-                          y,
-                        ) {
-                          return DropdownMenuItem(value: y, child: Text('$y'));
-                        }).toList(),
-                        onChanged: (v) => setState(() => _expiryYear = v),
                       ),
-                    ),
-                  ],
+                      if (_selectedType.supportsExpiry) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<int>(
+                                initialValue: _expiryMonth,
+                                decoration: const InputDecoration(
+                                  labelText: 'Exp Month',
+                                ),
+                                items: List.generate(12, (i) => i + 1).map((m) {
+                                  return DropdownMenuItem(
+                                    value: m,
+                                    child: Text(m.toString().padLeft(2, '0')),
+                                  );
+                                }).toList(),
+                                onChanged: (v) =>
+                                    setState(() => _expiryMonth = v),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DropdownButtonFormField<int>(
+                                initialValue: _expiryYear,
+                                decoration: const InputDecoration(
+                                  labelText: 'Exp Year',
+                                ),
+                                items: List.generate(15, (i) => currentYear + i)
+                                    .map((y) {
+                                      return DropdownMenuItem(
+                                        value: y,
+                                        child: Text('$y'),
+                                      );
+                                    })
+                                    .toList(),
+                                onChanged: (v) =>
+                                    setState(() => _expiryYear = v),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text(
+                          'Set as Default Method',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        value: _isDefault,
+                        activeTrackColor: AppColors.primary,
+                        onChanged: (val) {
+                          HapticFeedback.lightImpact();
+                          setState(() => _isDefault = val);
+                        },
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const HeroIcon(
+                            HeroIcons.shieldCheck,
+                            size: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 6),
+                          const Expanded(
+                            child: Text(
+                              'Non-sensitive metadata only. Never enter CVVs or passwords.',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _save,
+                    child: Text(isEditing ? 'Save' : 'Add'),
+                  ),
                 ),
               ],
-              const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text(
-                  'Set as Default Method',
-                  style: TextStyle(fontSize: 13),
-                ),
-                value: _isDefault,
-                activeTrackColor: AppColors.primary,
-                onChanged: (val) => setState(() => _isDefault = val),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                '🔒 Non-sensitive metadata only. Never enter CVVs or passwords.',
-                style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(onPressed: _save, child: Text(isEditing ? 'Save' : 'Add')),
-      ],
     );
   }
 }

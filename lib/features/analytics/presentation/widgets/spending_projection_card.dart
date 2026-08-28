@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_helper.dart';
@@ -41,8 +42,8 @@ class SpendingProjectionCard extends ConsumerWidget {
                     color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
-                    Icons.timeline_rounded,
+                  child: const HeroIcon(
+                    HeroIcons.arrowTrendingUp,
                     color: AppColors.primary,
                     size: 20,
                   ),

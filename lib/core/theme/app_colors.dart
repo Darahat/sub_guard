@@ -68,4 +68,25 @@ class AppColors {
     end: Alignment.bottomRight,
     colors: [success, accentLight],
   );
+
+  // --- Dark Mode (Zinc/Slate Palette) ---
+  // Base Canvas
+  static const Color darkCanvas = Color(0xFF09090B); // Zinc-950
+
+  // Grouped Surface
+  static const Color darkSurface = Color(0xFF121215); // Zinc-900
+  static const Color darkSurfaceElevated = Color(
+    0xFF18181B,
+  ); // Zinc-900 lighter variant
+
+  // Interactive Element / Input
+  static const Color darkInteractive = Color(0xFF27272A); // Zinc-800
+
+  // Subtle Outline
+  static const Color darkOutline = Color(0xFF3F3F46); // Zinc-700
+
+  // Muted Semantic Accents (Desaturated)
+  static const Color darkWarning = Color(0xFFF59E0B); // Amber
+  static const Color darkError = Color(0xFFEF4444); // Crimson
+  static const Color darkSuccess = Color(0xFF10B981); // Emerald
 }

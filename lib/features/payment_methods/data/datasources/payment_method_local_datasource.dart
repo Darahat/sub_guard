@@ -40,6 +40,9 @@ class PaymentMethodLocalDataSourceImpl implements PaymentMethodLocalDataSource {
   @override
   Future<PaymentMethodModel> addPaymentMethod(PaymentMethodModel method) async {
     try {
+      if (method.isDefault) {
+        await _clearOtherDefaults(method.id);
+      }
       final jsonString = json.encode(method.toJson());
       await _paymentMethodsBox.put(method.id, jsonString);
       return method;
@@ -55,6 +58,9 @@ class PaymentMethodLocalDataSourceImpl implements PaymentMethodLocalDataSource {
     PaymentMethodModel method,
   ) async {
     try {
+      if (method.isDefault) {
+        await _clearOtherDefaults(method.id);
+      }
       final jsonString = json.encode(method.toJson());
       await _paymentMethodsBox.put(method.id, jsonString);
       return method;
@@ -62,6 +68,27 @@ class PaymentMethodLocalDataSourceImpl implements PaymentMethodLocalDataSource {
       throw CacheException(
         'Failed to update payment method in local storage: $e',
       );
+    }
+  }
+
+  Future<void> _clearOtherDefaults(String currentId) async {
+    final all = await getPaymentMethods();
+    for (final m in all) {
+      if (m.isDefault && m.id != currentId) {
+        final updated = PaymentMethodModel(
+          id: m.id,
+          name: m.name,
+          type: m.type,
+          last4: m.last4,
+          expiryMonth: m.expiryMonth,
+          expiryYear: m.expiryYear,
+          colorHex: m.colorHex,
+          isDefault: false,
+          createdAt: m.createdAt,
+          updatedAt: DateTime.now(),
+        );
+        await _paymentMethodsBox.put(m.id, json.encode(updated.toJson()));
+      }
     }
   }
 

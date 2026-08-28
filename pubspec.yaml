@@ -13,6 +13,10 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
+  # Icons & Vector Graphics (Tier 1 Craftsmanship)
+  heroicons: ^0.10.0
+  flutter_svg: ^2.0.17
+
   # State Management
   flutter_riverpod: ^2.6.1
   riverpod_annotation: ^2.6.1
@@ -92,6 +96,12 @@ dependencies:
   # Additional
   equatable: ^2.0.7
   dartz: ^0.10.1
+  flutter_launcher_icons: ^0.14.4
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/logos/icon.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
 
 dev_dependencies:
   flutter_test:
@@ -115,4 +125,5 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/icons/logos/
     - assets/logos/

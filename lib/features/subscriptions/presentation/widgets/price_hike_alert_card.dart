@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/currency/currency_converter.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -28,12 +29,11 @@ class PriceHikeAlertCard extends ConsumerWidget {
     if (!metrics.hasRecentHikes) return const SizedBox.shrink();
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.deepOrange.shade50,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.deepOrange.shade200),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -44,33 +44,36 @@ class PriceHikeAlertCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.deepOrange.withValues(alpha: 0.15),
+                  color: Colors.deepOrange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
-                  Icons.trending_up_rounded,
+                child: const HeroIcon(
+                  HeroIcons.arrowTrendingUp,
                   color: Colors.deepOrange,
                   size: 20,
+                  style: HeroIconStyle.solid,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Price Increase Detected',
+                    const Text(
+                      'Action Hub: Price Hikes',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Colors.deepOrange.shade900,
+                        color: AppColors.textPrimary,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
-                      '${metrics.hikedSubscriptionsCount} subscription(s) increased prices (+${CurrencyHelper.formatAmount(metrics.totalMonthlyCreep, currency: primaryCurrency)}/mo · +${CurrencyHelper.formatAmount(metrics.totalAnnualCreep, currency: primaryCurrency)}/yr)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.deepOrange.shade800,
+                      '${metrics.hikedSubscriptionsCount} subscription(s) increased prices (+${CurrencyHelper.formatAmount(metrics.totalMonthlyCreep, currency: primaryCurrency)}/mo)',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -78,14 +81,14 @@ class PriceHikeAlertCard extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
           // List of hikes
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: metrics.hikes.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final hike = metrics.hikes[index];
               final sub = hike.subscription;
@@ -98,11 +101,11 @@ class PriceHikeAlertCard extends ConsumerWidget {
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.deepOrange.shade100),
+                    border: Border.all(color: Colors.grey.shade200),
                   ),
                   child: Row(
                     children: [
@@ -114,35 +117,36 @@ class PriceHikeAlertCard extends ConsumerWidget {
                               sub.serviceName,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                                fontSize: 14,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '${CurrencyHelper.formatAmount(change.previousAmount, currency: sub.currency)} → ${CurrencyHelper.formatAmount(change.newAmount, currency: sub.currency)} (${hike.daysSinceChange == 0 ? 'today' : '${hike.daysSinceChange}d ago'})',
+                              '${CurrencyHelper.formatAmount(change.previousAmount, currency: sub.currency)} → ${CurrencyHelper.formatAmount(change.newAmount, currency: sub.currency)}',
                               style: const TextStyle(
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: AppColors.textSecondary,
                               ),
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 12),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                          horizontal: 10,
+                          vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.deepOrange.shade100,
-                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.deepOrange,
+                          borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           '+${hike.percentageChange.toStringAsFixed(1)}%',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.deepOrange.shade900,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -152,28 +156,21 @@ class PriceHikeAlertCard extends ConsumerWidget {
               );
             },
           ),
-          const SizedBox(height: 10),
-
-          // Bottom Action
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.deepOrange.shade900,
-              side: BorderSide(color: Colors.deepOrange.shade200),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          const SizedBox(height: 16),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              HeroIcon(
+                HeroIcons.informationCircle,
+                size: 13,
+                color: AppColors.textSecondary,
               ),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              visualDensity: VisualDensity.compact,
-            ),
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              context.push('/catalog');
-            },
-            icon: const Icon(Icons.search, size: 16),
-            label: const Text(
-              'Explore Lower-Tier Plans & Cancellation Guides',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-            ),
+              SizedBox(width: 6),
+              Text(
+                'Tap an item to review or update subscription.',
+                style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+              ),
+            ],
           ),
         ],
       ),

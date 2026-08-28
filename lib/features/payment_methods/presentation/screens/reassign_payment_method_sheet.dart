@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_helper.dart';
@@ -118,8 +119,8 @@ class _ReassignPaymentMethodSheetState
                     color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
-                    Icons.swap_horiz_rounded,
+                  child: const HeroIcon(
+                    HeroIcons.arrowsRightLeft,
                     color: AppColors.primary,
                     size: 22,
                   ),
@@ -150,33 +151,75 @@ class _ReassignPaymentMethodSheetState
             ),
             const SizedBox(height: 16),
 
-            // Target Payment Method Selector
-            DropdownButtonFormField<String?>(
-              initialValue: _targetPaymentMethodId,
-              decoration: InputDecoration(
-                labelText: 'Move to New Payment Method',
-                prefixIcon: const Icon(Icons.credit_card),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+            // Target Payment Method Selector (Modern Preview Chip)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: ListTile(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  // In a real app, this would open a smaller modal to pick the target card
+                  // For now, cycle to the next payment method for demonstration.
+                  if (paymentMethods.isNotEmpty) {
+                    setState(() {
+                      final currentIdx = paymentMethods.indexWhere(
+                        (m) => m.id == _targetPaymentMethodId,
+                      );
+                      final nextIdx = (currentIdx + 1) % paymentMethods.length;
+                      _targetPaymentMethodId = paymentMethods[nextIdx].id;
+                    });
+                  }
+                },
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: HeroIcon(
+                    _targetPaymentMethodId == null
+                        ? HeroIcons.creditCard
+                        : paymentMethods
+                              .firstWhere((m) => m.id == _targetPaymentMethodId)
+                              .type
+                              .heroIcon,
+                    size: 20,
+                    color: AppColors.primary,
+                  ),
+                ),
+                title: Text(
+                  _targetPaymentMethodId == null
+                      ? 'Select Target Card'
+                      : paymentMethods
+                            .firstWhere((m) => m.id == _targetPaymentMethodId)
+                            .displayLabel,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                subtitle: const Text(
+                  'Move selected subscriptions here',
+                  style: TextStyle(fontSize: 12),
+                ),
+                trailing: const Icon(
+                  Icons.keyboard_arrow_down,
+                  color: AppColors.textSecondary,
                 ),
               ),
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('Unassign (No payment method)'),
-                ),
-                ...paymentMethods.map((m) {
-                  return DropdownMenuItem<String?>(
-                    value: m.id,
-                    child: Text(m.displayLabel),
-                  );
-                }),
-              ],
-              onChanged: (val) => setState(() => _targetPaymentMethodId = val),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
-            // Subscription Checklist Header
+            // Subscription Checklist Header with Pill
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -187,17 +230,43 @@ class _ReassignPaymentMethodSheetState
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                TextButton(
-                  onPressed: () => _selectAll(
-                    _selectedSubscriptionIds.length !=
-                        widget.affectedSubscriptions.length,
-                  ),
-                  child: Text(
-                    _selectedSubscriptionIds.length ==
-                            widget.affectedSubscriptions.length
-                        ? 'Deselect All'
-                        : 'Select All',
-                    style: const TextStyle(fontSize: 12),
+                InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    _selectAll(
+                      _selectedSubscriptionIds.length !=
+                          widget.affectedSubscriptions.length,
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          _selectedSubscriptionIds.length ==
+                              widget.affectedSubscriptions.length
+                          ? AppColors.primary.withValues(alpha: 0.1)
+                          : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _selectedSubscriptionIds.length ==
+                              widget.affectedSubscriptions.length
+                          ? 'Deselect All'
+                          : 'Select All',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color:
+                            _selectedSubscriptionIds.length ==
+                                widget.affectedSubscriptions.length
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -236,6 +305,7 @@ class _ReassignPaymentMethodSheetState
                       ),
                     ),
                     onChanged: (val) {
+                      HapticFeedback.lightImpact();
                       setState(() {
                         if (val == true) {
                           _selectedSubscriptionIds.add(sub.id);

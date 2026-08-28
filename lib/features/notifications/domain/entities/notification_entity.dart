@@ -77,6 +77,7 @@ class NotificationSettingsEntity {
   final bool soundEnabled;
   final bool vibrationEnabled;
   final bool badgeEnabled;
+  final String reminderTime;
   final DateTime? updatedAt;
 
   const NotificationSettingsEntity({
@@ -85,6 +86,7 @@ class NotificationSettingsEntity {
     this.soundEnabled = true,
     this.vibrationEnabled = true,
     this.badgeEnabled = true,
+    this.reminderTime = '09:00',
     this.updatedAt,
   });
 
@@ -94,6 +96,7 @@ class NotificationSettingsEntity {
     bool? soundEnabled,
     bool? vibrationEnabled,
     bool? badgeEnabled,
+    String? reminderTime,
     DateTime? updatedAt,
   }) {
     return NotificationSettingsEntity(
@@ -102,6 +105,7 @@ class NotificationSettingsEntity {
       soundEnabled: soundEnabled ?? this.soundEnabled,
       vibrationEnabled: vibrationEnabled ?? this.vibrationEnabled,
       badgeEnabled: badgeEnabled ?? this.badgeEnabled,
+      reminderTime: reminderTime ?? this.reminderTime,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }

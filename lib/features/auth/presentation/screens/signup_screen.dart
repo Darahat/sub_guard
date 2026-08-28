@@ -1,8 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
@@ -23,9 +26,27 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  double _passwordStrength = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_updatePasswordStrength);
+  }
+
+  void _updatePasswordStrength() {
+    final text = _passwordController.text;
+    double strength = 0.0;
+    if (text.length >= 8) strength += 0.25;
+    if (text.contains(RegExp(r'[A-Z]'))) strength += 0.25;
+    if (text.contains(RegExp(r'[0-9]'))) strength += 0.25;
+    if (text.contains(RegExp(r'[!@#\$&*~]'))) strength += 0.25;
+    setState(() => _passwordStrength = strength);
+  }
 
   @override
   void dispose() {
+    _passwordController.removeListener(_updatePasswordStrength);
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -34,6 +55,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _handleSignUp() async {
+    HapticFeedback.lightImpact();
     if (!_formKey.currentState!.validate()) return;
 
     await ref
@@ -46,10 +68,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _handleGoogleSignIn() async {
+    HapticFeedback.lightImpact();
     await ref.read(authNotifierProvider.notifier).signInWithGoogle();
   }
 
   Future<void> _handleAppleSignIn() async {
+    HapticFeedback.lightImpact();
     await ref.read(authNotifierProvider.notifier).signInWithApple();
   }
 
@@ -73,6 +97,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     });
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -83,24 +108,41 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo
-                  Icon(
-                    Icons.subscriptions_rounded,
-                    size: 80,
-                    color: AppColors.primary,
+                  // Logo with glowing frosted container
+                  Center(
+                    child: Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.25),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: const Center(
+                        child: HeroIcon(
+                          HeroIcons.shieldCheck,
+                          size: 38,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
 
                   // Title
                   Text(
                     'Create Account',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
                       color: AppColors.textPrimary,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     'Get started with SubGuard',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -108,99 +150,197 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 36),
 
-                  // Name field
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      labelText: 'Full Name',
-                      hintText: 'Enter your name',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  // Grouped Form Inputs
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(
+                          context,
+                        ).dividerColor.withValues(alpha: 0.1),
                       ),
                     ),
-                    validator: Validators.name,
-                    enabled: !authState.isLoading,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Email field
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      hintText: 'Enter your email',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: Validators.email,
-                    enabled: !authState.isLoading,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Password field
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      hintText: 'Create a password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
+                    child: Column(
+                      children: [
+                        // Name field
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Full Name',
+                            hintText: 'Enter your name',
+                            prefixIcon: Padding(
+                              padding: EdgeInsets.all(12),
+                              child: HeroIcon(
+                                HeroIcons.user,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
+                          ),
+                          validator: Validators.name,
+                          enabled: !authState.isLoading,
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: Validators.password,
-                    enabled: !authState.isLoading,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Confirm Password field
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    obscureText: _obscureConfirmPassword,
-                    decoration: InputDecoration(
-                      labelText: 'Confirm Password',
-                      hintText: 'Re-enter your password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirmPassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
+                        Divider(
+                          height: 1,
+                          color: Theme.of(
+                            context,
+                          ).dividerColor.withValues(alpha: 0.1),
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureConfirmPassword = !_obscureConfirmPassword;
-                          });
-                        },
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                        // Email field
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            hintText: 'Enter your email',
+                            prefixIcon: Padding(
+                              padding: EdgeInsets.all(12),
+                              child: HeroIcon(
+                                HeroIcons.envelope,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
+                          ),
+                          validator: Validators.email,
+                          enabled: !authState.isLoading,
+                        ),
+                        Divider(
+                          height: 1,
+                          color: Theme.of(
+                            context,
+                          ).dividerColor.withValues(alpha: 0.1),
+                        ),
+                        // Password field
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            hintText: 'Create a password',
+                            prefixIcon: const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: HeroIcon(
+                                HeroIcons.lockClosed,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            suffixIcon: IconButton(
+                              icon: HeroIcon(
+                                _obscurePassword
+                                    ? HeroIcons.eyeSlash
+                                    : HeroIcons.eye,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
+                          ),
+                          validator: Validators.password,
+                          enabled: !authState.isLoading,
+                        ),
+                        // Live Password Strength Meter
+                        if (_passwordController.text.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                            ).copyWith(bottom: 12.0),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: TweenAnimationBuilder<double>(
+                                tween: Tween<double>(
+                                  begin: 0,
+                                  end: _passwordStrength,
+                                ),
+                                duration: const Duration(milliseconds: 250),
+                                builder: (context, value, _) {
+                                  return LinearProgressIndicator(
+                                    value: value,
+                                    minHeight: 4,
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).dividerColor.withValues(alpha: 0.1),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      value <= 0.25
+                                          ? Colors.red
+                                          : value <= 0.75
+                                          ? Colors.amber
+                                          : Colors.green,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        Divider(
+                          height: 1,
+                          color: Theme.of(
+                            context,
+                          ).dividerColor.withValues(alpha: 0.1),
+                        ),
+                        // Confirm Password field
+                        TextFormField(
+                          controller: _confirmPasswordController,
+                          obscureText: _obscureConfirmPassword,
+                          decoration: InputDecoration(
+                            labelText: 'Confirm Password',
+                            hintText: 'Re-enter your password',
+                            prefixIcon: const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: HeroIcon(
+                                HeroIcons.lockClosed,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            suffixIcon: IconButton(
+                              icon: HeroIcon(
+                                _obscureConfirmPassword
+                                    ? HeroIcons.eyeSlash
+                                    : HeroIcons.eye,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () => setState(
+                                () => _obscureConfirmPassword =
+                                    !_obscureConfirmPassword,
+                              ),
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
+                          ),
+                          validator: (value) => Validators.confirmPassword(
+                            value,
+                            _passwordController.text,
+                          ),
+                          enabled: !authState.isLoading,
+                        ),
+                      ],
                     ),
-                    validator: (value) => Validators.confirmPassword(
-                      value,
-                      _passwordController.text,
-                    ),
-                    enabled: !authState.isLoading,
                   ),
                   const SizedBox(height: 24),
 
@@ -213,16 +353,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: authState.isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 240),
+                      child: authState.isLoading
+                          ? const Text(
+                              'Creating Account...',
+                              key: ValueKey('loading'),
+                              style: TextStyle(fontSize: 16),
+                            )
+                          : const Text(
+                              'Sign Up',
+                              key: ValueKey('ready'),
+                              style: TextStyle(fontSize: 16),
                             ),
-                          )
-                        : const Text('Sign Up', style: TextStyle(fontSize: 16)),
+                    ),
                   ),
                   const SizedBox(height: 24),
 
@@ -234,7 +378,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           'OR',
-                          style: TextStyle(color: AppColors.textSecondary),
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                       const Expanded(child: Divider()),
@@ -242,40 +390,57 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Google Sign In
-                  OutlinedButton.icon(
-                    onPressed: authState.isLoading ? null : _handleGoogleSignIn,
-                    icon: Image.asset(
-                      'assets/icons/google.png',
-                      height: 24,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.g_mobiledata),
-                    ),
-                    label: const Text('Continue with Google'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Apple Sign In (iOS only)
-                  if (Platform.isIOS)
-                    OutlinedButton.icon(
-                      onPressed: authState.isLoading
-                          ? null
-                          : _handleAppleSignIn,
-                      icon: const Icon(Icons.apple),
-                      label: const Text('Continue with Apple'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  // Clean OAuth Pills
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withValues(alpha: 0.1),
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: IconButton(
+                          onPressed: authState.isLoading
+                              ? null
+                              : _handleGoogleSignIn,
+                          icon: SvgPicture.asset(
+                            'assets/icons/logos/google.svg',
+                            height: 24,
+                            width: 24,
+                          ),
+                          padding: const EdgeInsets.all(16),
                         ),
                       ),
-                    ),
+                      if (Platform.isIOS) ...[
+                        const SizedBox(width: 16),
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).dividerColor.withValues(alpha: 0.1),
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: IconButton(
+                            onPressed: authState.isLoading
+                                ? null
+                                : _handleAppleSignIn,
+                            icon: SvgPicture.asset(
+                              'assets/icons/logos/apple.svg',
+                              height: 24,
+                              width: 24,
+                            ),
+                            padding: const EdgeInsets.all(16),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                   const SizedBox(height: 24),
 
                   // Sign in link

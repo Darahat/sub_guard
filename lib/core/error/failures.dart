@@ -14,108 +14,96 @@ abstract class Failure extends Equatable {
 
 // Server Failures
 class ServerFailure extends Failure {
-  const ServerFailure([String message = 'Server error occurred']) : super(message);
+  const ServerFailure([super.message = 'Server error occurred']);
 }
 
 class UnauthorizedFailure extends Failure {
-  const UnauthorizedFailure([String message = 'Unauthorized access']) : super(message);
+  const UnauthorizedFailure([super.message = 'Unauthorized access']);
 }
 
 class ForbiddenFailure extends Failure {
-  const ForbiddenFailure([String message = 'Access forbidden']) : super(message);
+  const ForbiddenFailure([super.message = 'Access forbidden']);
 }
 
 class NotFoundFailure extends Failure {
-  const NotFoundFailure([String message = 'Resource not found']) : super(message);
+  const NotFoundFailure([super.message = 'Resource not found']);
 }
 
 class ValidationFailure extends Failure {
-  const ValidationFailure([String message = 'Validation failed']) : super(message);
+  const ValidationFailure([super.message = 'Validation failed']);
 }
 
 // Network Failures
 class NetworkFailure extends Failure {
-  const NetworkFailure([String message = 'No internet connection']) : super(message);
+  const NetworkFailure([super.message = 'No internet connection']);
 }
 
 class TimeoutFailure extends Failure {
-  const TimeoutFailure([String message = 'Request timeout']) : super(message);
+  const TimeoutFailure([super.message = 'Request timeout']);
 }
 
 // Cache Failures
 class CacheFailure extends Failure {
-  const CacheFailure([String message = 'Cache error occurred']) : super(message);
+  const CacheFailure([super.message = 'Cache error occurred']);
 }
 
 // Auth Failures
 class AuthFailure extends Failure {
-  const AuthFailure([String message = 'Authentication failed']) : super(message);
+  const AuthFailure([super.message = 'Authentication failed']);
 }
 
 class InvalidCredentialsFailure extends AuthFailure {
-  const InvalidCredentialsFailure([String message = 'Invalid email or password']) 
-      : super(message);
+  const InvalidCredentialsFailure([super.message = 'Invalid email or password']);
 }
 
 class EmailAlreadyInUseFailure extends AuthFailure {
-  const EmailAlreadyInUseFailure([String message = 'Email already in use']) 
-      : super(message);
+  const EmailAlreadyInUseFailure([super.message = 'Email already in use']);
 }
 
 class WeakPasswordFailure extends AuthFailure {
-  const WeakPasswordFailure([String message = 'Password is too weak']) 
-      : super(message);
+  const WeakPasswordFailure([super.message = 'Password is too weak']);
 }
 
 class UserNotFoundFailure extends AuthFailure {
-  const UserNotFoundFailure([String message = 'User not found']) 
-      : super(message);
+  const UserNotFoundFailure([super.message = 'User not found']);
 }
 
 class AccountLockedFailure extends AuthFailure {
-  const AccountLockedFailure([String message = 'Account locked. Please try again later']) 
-      : super(message);
+  const AccountLockedFailure([super.message = 'Account locked. Please try again later']);
 }
 
 // Payment Failures
 class PaymentFailure extends Failure {
-  const PaymentFailure([String message = 'Payment failed']) : super(message);
+  const PaymentFailure([super.message = 'Payment failed']);
 }
 
 class SubscriptionFailure extends Failure {
-  const SubscriptionFailure([String message = 'Subscription operation failed']) 
-      : super(message);
+  const SubscriptionFailure([super.message = 'Subscription operation failed']);
 }
 
 // Email Failures
 class EmailSyncFailure extends Failure {
-  const EmailSyncFailure([String message = 'Email sync failed']) : super(message);
+  const EmailSyncFailure([super.message = 'Email sync failed']);
 }
 
 class EmailPermissionFailure extends Failure {
-  const EmailPermissionFailure([String message = 'Email permission denied']) 
-      : super(message);
+  const EmailPermissionFailure([super.message = 'Email permission denied']);
 }
 
 // Unknown Failure
 class UnknownFailure extends Failure {
-  const UnknownFailure([String message = 'An unknown error occurred']) : super(message);
+  const UnknownFailure([super.message = 'An unknown error occurred']);
 }
 
 // Biometric Failures
 class BiometricFailure extends Failure {
-  const BiometricFailure([String message = 'Biometric authentication failed']) 
-      : super(message);
+  const BiometricFailure([super.message = 'Biometric authentication failed']);
 }
 
 class BiometricNotAvailableFailure extends BiometricFailure {
-  const BiometricNotAvailableFailure(
-      [String message = 'Biometric authentication not available']) 
-      : super(message);
+  const BiometricNotAvailableFailure([super.message = 'Biometric authentication not available']);
 }
 
 class BiometricNotEnrolledFailure extends BiometricFailure {
-  const BiometricNotEnrolledFailure(
-      [String message = 'No biometric credentials enrolled']) 
-      : super(message);
+  const BiometricNotEnrolledFailure([super.message = 'No biometric credentials enrolled']);
 }

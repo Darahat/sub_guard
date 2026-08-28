@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/insight_entity.dart';
 
 class StatsOverviewCard extends StatelessWidget {
@@ -15,24 +17,12 @@ class StatsOverviewCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Overview',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
+          const Text('OVERVIEW', style: AppTypography.sectionOverhead),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -41,7 +31,7 @@ class StatsOverviewCard extends StatelessWidget {
                   context,
                   'Total',
                   stats.totalSubscriptions.toString(),
-                  Icons.subscriptions,
+                  HeroIcons.rectangleStack,
                   AppColors.primary,
                 ),
               ),
@@ -51,7 +41,7 @@ class StatsOverviewCard extends StatelessWidget {
                   context,
                   'Active',
                   stats.activeSubscriptions.toString(),
-                  Icons.check_circle,
+                  HeroIcons.checkCircle,
                   AppColors.success,
                 ),
               ),
@@ -65,7 +55,7 @@ class StatsOverviewCard extends StatelessWidget {
                   context,
                   'Paused',
                   stats.pausedSubscriptions.toString(),
-                  Icons.pause_circle,
+                  HeroIcons.pauseCircle,
                   AppColors.warning,
                 ),
               ),
@@ -75,7 +65,7 @@ class StatsOverviewCard extends StatelessWidget {
                   context,
                   'Cancelled',
                   stats.cancelledSubscriptions.toString(),
-                  Icons.cancel,
+                  HeroIcons.xCircle,
                   AppColors.error,
                 ),
               ),
@@ -108,33 +98,35 @@ class StatsOverviewCard extends StatelessWidget {
     BuildContext context,
     String label,
     String value,
-    IconData icon,
+    HeroIcons icon,
     Color color,
   ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          HeroIcon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: AppTypography.sectionOverhead.copyWith(fontSize: 10),
+              ),
+              Text(
+                value,
+                style: AppTypography.cardFinancial.copyWith(
+                  fontSize: 18,
+                  color: color,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -145,17 +137,12 @@ class StatsOverviewCard extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-        ),
+        Text(label, style: AppTypography.bodyMetadata),
         Text(
           value,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          style: AppTypography.compactFinancial.copyWith(
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
         ),
       ],
     );

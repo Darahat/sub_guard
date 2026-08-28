@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_helper.dart';
 import '../../../budget/presentation/providers/budget_providers.dart';
 import '../../domain/entities/payment_method_entity.dart';
+import '../../domain/services/payment_shield_evaluator.dart';
 import '../providers/payment_method_providers.dart';
 import '../screens/reassign_payment_method_sheet.dart';
 
@@ -28,43 +30,52 @@ class PaymentShieldCard extends ConsumerWidget {
         : Colors.amber.shade200;
     final accentColor = hasExpired ? AppColors.error : AppColors.warning;
 
+    double totalSpendAtRisk = 0;
+    int affectedSubs = 0;
+    for (var r in risks) {
+      totalSpendAtRisk += r.monthlySpendAtRisk;
+      affectedSubs += r.affectedSubscriptions.length;
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: bannerBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: bannerBorder),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Header
-          Row(
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          _showRisksSheet(context, risks, primaryCurrency);
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: accentColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
+                  shape: BoxShape.circle,
                 ),
-                child: Icon(
+                child: HeroIcon(
                   hasExpired
-                      ? Icons.credit_card_off_rounded
-                      : Icons.shield_outlined,
+                      ? HeroIcons.exclamationTriangle
+                      : HeroIcons.shieldExclamation,
                   color: accentColor,
                   size: 20,
+                  style: HeroIconStyle.solid,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      hasExpired
-                          ? 'Payment Method Expired'
-                          : 'Payment Card Expiring Soon',
+                      'Payment Shield Alert',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -73,159 +84,206 @@ class PaymentShieldCard extends ConsumerWidget {
                             : Colors.amber.shade900,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
-                      '${risks.length} payment method(s) require review to avoid payment interruptions.',
+                      affectedSubs > 0
+                          ? '${CurrencyHelper.formatAmount(totalSpendAtRisk, currency: primaryCurrency)}/mo across $affectedSubs sub(s) at risk.'
+                          : '${risks.length} payment method(s) require review.',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         color: hasExpired
                             ? Colors.red.shade800
                             : Colors.amber.shade900,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               ),
+              Icon(Icons.chevron_right, color: accentColor, size: 20),
             ],
           ),
-          const SizedBox(height: 12),
-
-          // Cards list
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: risks.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final group = risks[index];
-              final method = group.paymentMethod;
-              final isExpired = group.status == PaymentExpiryStatus.expired;
-
-              String badgeText;
-              Color badgeBg;
-              Color badgeTextCol;
-
-              if (isExpired) {
-                badgeText = 'Expired ${method.formattedExpiry}';
-                badgeBg = Colors.red.shade100;
-                badgeTextCol = AppColors.error;
-              } else if (group.daysUntilExpiry == 0) {
-                badgeText = 'Expires Today!';
-                badgeBg = Colors.red.shade100;
-                badgeTextCol = AppColors.error;
-              } else {
-                badgeText = 'Expires in ${group.daysUntilExpiry} days';
-                badgeBg = Colors.amber.shade100;
-                badgeTextCol = Colors.amber.shade900;
-              }
-
-              return Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: bannerBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          method.type.icon,
-                          size: 18,
-                          color: AppColors.textSecondary,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            method.displayLabel,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: badgeBg,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            badgeText,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: badgeTextCol,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      group.affectedSubscriptions.isEmpty
-                          ? 'No active subscriptions currently linked to this method.'
-                          : '${group.affectedSubscriptions.length} subscription(s) (${CurrencyHelper.formatAmount(group.monthlySpendAtRisk, currency: primaryCurrency)}/mo) use this card and may require an update.',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    if (group.affectedSubscriptions.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: accentColor,
-                          side: BorderSide(color: bannerBorder),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => ReassignPaymentMethodSheet(
-                              currentPaymentMethod: method,
-                              affectedSubscriptions:
-                                  group.affectedSubscriptions,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.swap_horiz, size: 14),
-                        label: const Text(
-                          'Review & Reassign Subscriptions',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            '🔒 SubGuard monitors only user-entered metadata. No banking or card credentials are stored.',
-            style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
-            textAlign: TextAlign.center,
-          ),
-        ],
+        ),
       ),
+    );
+  }
+
+  void _showRisksSheet(
+    BuildContext context,
+    List<PaymentShieldRiskGroup> risks,
+    String primaryCurrency,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'At-Risk Payment Methods',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: risks.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final group = risks[index];
+                      final method = group.paymentMethod;
+                      final isExpired =
+                          group.status == PaymentExpiryStatus.expired;
+
+                      String badgeText;
+                      Color badgeBg;
+                      Color badgeTextCol;
+
+                      if (isExpired) {
+                        badgeText = 'Expired ${method.formattedExpiry}';
+                        badgeBg = Colors.red.shade100;
+                        badgeTextCol = AppColors.error;
+                      } else if (group.daysUntilExpiry == 0) {
+                        badgeText = 'Expires Today!';
+                        badgeBg = Colors.red.shade100;
+                        badgeTextCol = AppColors.error;
+                      } else {
+                        badgeText = 'Expires in ${group.daysUntilExpiry} days';
+                        badgeBg = Colors.amber.shade100;
+                        badgeTextCol = Colors.amber.shade900;
+                      }
+
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                HeroIcon(
+                                  method.type.heroIcon,
+                                  size: 18,
+                                  color: AppColors.textSecondary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    method.displayLabel,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: badgeBg,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    badgeText,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: badgeTextCol,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              group.affectedSubscriptions.isEmpty
+                                  ? 'No active subscriptions currently linked to this method.'
+                                  : '${group.affectedSubscriptions.length} subscription(s) (${CurrencyHelper.formatAmount(group.monthlySpendAtRisk, currency: primaryCurrency)}/mo) use this card and may require an update.',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            if (group.affectedSubscriptions.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  HapticFeedback.lightImpact();
+                                  showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (_) => ReassignPaymentMethodSheet(
+                                      currentPaymentMethod: method,
+                                      affectedSubscriptions:
+                                          group.affectedSubscriptions,
+                                    ),
+                                  );
+                                },
+                                icon: const HeroIcon(
+                                  HeroIcons.arrowsRightLeft,
+                                  size: 14,
+                                ),
+                                label: const Text(
+                                  'Reassign Subscriptions',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:heroicons/heroicons.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/currency_helper.dart';
 
 class StatsCard extends StatelessWidget {
   final String title;
   final double? amount;
   final int? count;
-  final IconData icon;
+  final HeroIcons icon;
   final Color color;
 
   const StatsCard({
@@ -24,9 +25,9 @@ class StatsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -34,32 +35,20 @@ class StatsCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: color, size: 24),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              HeroIcon(icon, color: color, size: 22),
+              Text(title.toUpperCase(), style: AppTypography.sectionOverhead),
             ],
           ),
           const SizedBox(height: 8),
           if (amount != null)
             Text(
               CurrencyHelper.formatAmount(amount!),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+              style: AppTypography.cardFinancial.copyWith(color: color),
             )
           else if (count != null)
             Text(
               count.toString(),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+              style: AppTypography.cardFinancial.copyWith(color: color),
             ),
         ],
       ),

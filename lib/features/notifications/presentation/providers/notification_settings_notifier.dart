@@ -88,6 +88,12 @@ class NotificationSettingsNotifier
     await _updateSettings(updatedSettings);
   }
 
+  /// Update reminder time
+  Future<void> updateReminderTime(String time) async {
+    final updatedSettings = state.settings.copyWith(reminderTime: time);
+    await _updateSettings(updatedSettings);
+  }
+
   /// Toggle reminder day
   Future<void> toggleReminderDay(int days) async {
     final currentDays = List<int>.from(state.settings.defaultReminderDays);

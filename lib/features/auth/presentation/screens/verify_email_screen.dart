@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -14,22 +17,64 @@ class VerifyEmailScreen extends ConsumerStatefulWidget {
   ConsumerState<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
 }
 
-class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
+class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
+    with SingleTickerProviderStateMixin {
   final _codeController = TextEditingController();
+
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  int _cooldown = 60;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _startCooldown();
+
     // Auto-send verification code on entering screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.email.isNotEmpty) {
-        ref.read(authNotifierProvider.notifier).sendVerificationCode(widget.email);
+        ref
+            .read(authNotifierProvider.notifier)
+            .sendVerificationCode(widget.email);
       }
     });
   }
 
+  void _startCooldown() {
+    setState(() => _cooldown = 60);
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_cooldown > 0) {
+        setState(() => _cooldown--);
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  void _resendCode() {
+    HapticFeedback.lightImpact();
+    ref.read(authNotifierProvider.notifier).sendVerificationCode(widget.email);
+    _startCooldown();
+  }
+
   @override
   void dispose() {
+    _timer?.cancel();
+    _pulseController.dispose();
     _codeController.dispose();
     super.dispose();
   }
@@ -87,9 +132,8 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Verify Email'),
-      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(title: const Text('Verify Email')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -98,16 +142,19 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
             children: [
               const SizedBox(height: 20),
               Center(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.mark_email_read_outlined,
-                    size: 64,
-                    color: AppColors.primary,
+                child: ScaleTransition(
+                  scale: _pulseAnimation,
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.mark_email_read_outlined,
+                      size: 64,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
               ),
@@ -115,17 +162,17 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
               Text(
                 'Verify Your Email Address',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
                 'We sent a 6-digit verification code to:\n${widget.email}',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade600,
-                      height: 1.4,
-                    ),
+                  color: Colors.grey.shade600,
+                  height: 1.4,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
@@ -151,7 +198,10 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -166,32 +216,48 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                   ),
                 ),
                 onPressed: authState.isLoading ? null : _handleVerify,
-                child: authState.isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 240),
+                  child: authState.isLoading
+                      ? const Text(
+                          'Verifying...',
+                          key: ValueKey('loading'),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : const Text(
+                          'Verify Code',
+                          key: ValueKey('ready'),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      )
-                    : const Text(
-                        'Verify Code',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                ),
               ),
               const SizedBox(height: 16),
-              TextButton.icon(
-                onPressed: authState.isLoading
-                    ? null
-                    : () => ref
-                        .read(authNotifierProvider.notifier)
-                        .sendVerificationCode(widget.email),
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Resend Code'),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _cooldown > 0
+                    ? Padding(
+                        key: const ValueKey('cooldown'),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          'Resend available in ${_cooldown}s',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      )
+                    : TextButton.icon(
+                        key: const ValueKey('resend'),
+                        onPressed: authState.isLoading ? null : _resendCode,
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Resend Code'),
+                      ),
               ),
             ],
           ),

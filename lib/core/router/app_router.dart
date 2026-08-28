@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../features/auth/presentation/screens/change_password_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
@@ -20,6 +21,7 @@ import '../../features/subscriptions/presentation/screens/add_edit_subscription_
 import '../../features/subscriptions/presentation/screens/dashboard_screen.dart';
 import '../../features/subscriptions/presentation/screens/subscription_detail_screen.dart';
 import '../services/onboarding_service.dart';
+import '../theme/app_colors.dart';
 
 class AppRouter {
   // Route names
@@ -238,18 +240,30 @@ class MainBottomNavScaffold extends StatelessWidget {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.subscriptions_outlined),
-            selectedIcon: Icon(Icons.subscriptions),
+            icon: HeroIcon(HeroIcons.rectangleStack, size: 22),
+            selectedIcon: HeroIcon(
+              HeroIcons.rectangleStack,
+              style: HeroIconStyle.solid,
+              size: 22,
+            ),
             label: 'Subscriptions',
           ),
           NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            selectedIcon: Icon(Icons.insights),
+            icon: HeroIcon(HeroIcons.chartPie, size: 22),
+            selectedIcon: HeroIcon(
+              HeroIcons.chartPie,
+              style: HeroIconStyle.solid,
+              size: 22,
+            ),
             label: 'Insights',
           ),
           NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
+            icon: HeroIcon(HeroIcons.cog6Tooth, size: 22),
+            selectedIcon: HeroIcon(
+              HeroIcons.cog6Tooth,
+              style: HeroIconStyle.solid,
+              size: 22,
+            ),
             label: 'Settings',
           ),
         ],
@@ -272,15 +286,23 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
+  bool _isVisible = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() => _isVisible = true);
+        HapticFeedback.lightImpact();
+      }
+    });
     _navigateToHome();
   }
 
   Future<void> _navigateToHome() async {
     try {
-      await Future.delayed(const Duration(milliseconds: 1200));
+      await Future.delayed(const Duration(milliseconds: 1400));
       if (!mounted) return;
 
       final onboardingService = ref.read(onboardingServiceProvider);
@@ -301,20 +323,80 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.subscriptions, size: 80, color: Colors.blue),
-            SizedBox(height: 24),
-            Text(
-              'SubGuard',
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: SafeArea(
+        child: Center(
+          child: AnimatedOpacity(
+            opacity: _isVisible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeOutCubic,
+            child: AnimatedScale(
+              scale: _isVisible ? 1.0 : 0.85,
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeOutCubic,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Spacer(flex: 2),
+
+                  // Centered App Icon with Subtle Elevation
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Image.asset(
+                        'assets/logos/icon.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          child: const Center(
+                            child: HeroIcon(
+                              HeroIcons.shieldCheck,
+                              size: 48,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Brand Title & Tagline
+                  Text(
+                    'SubGuard',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Subscription & Free Trial Shield',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+
+                  const Spacer(flex: 2),
+                ],
+              ),
             ),
-            SizedBox(height: 48),
-            CircularProgressIndicator(),
-          ],
+          ),
         ),
       ),
     );

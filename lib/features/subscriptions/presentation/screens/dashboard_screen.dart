@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/constants/preset_catalog.dart';
 import '../../../../core/sync/sync_service.dart';
@@ -180,7 +181,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             tooltip: 'Notification Settings',
-            onPressed: () => context.push('/notifications'),
+            onPressed: () => context.push('/settings/notifications'),
           ),
         ],
       ),
@@ -220,7 +221,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   title: 'Monthly',
                                   amount:
                                       subscriptionState.totalMonthlySpending,
-                                  icon: Icons.calendar_today,
+                                  icon: HeroIcons.calendar,
                                   color: AppColors.primary,
                                 ),
                               ),
@@ -229,7 +230,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 child: StatsCard(
                                   title: 'Yearly',
                                   amount: subscriptionState.totalYearlySpending,
-                                  icon: Icons.event_note,
+                                  icon: HeroIcons.calendarDays,
                                   color: AppColors.accent,
                                 ),
                               ),
@@ -243,7 +244,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   title: 'Active',
                                   count:
                                       subscriptionState.activeSubscriptionCount,
-                                  icon: Icons.check_circle_outline,
+                                  icon: HeroIcons.checkCircle,
                                   color: AppColors.success,
                                 ),
                               ),
@@ -254,7 +255,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   count: subscriptionState
                                       .expiringSoonSubscriptions
                                       .length,
-                                  icon: Icons.warning_amber_rounded,
+                                  icon: HeroIcons.exclamationTriangle,
                                   color: AppColors.warning,
                                 ),
                               ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_helper.dart';
@@ -41,8 +42,8 @@ class SavingsOpportunityCard extends ConsumerWidget {
                     color: Colors.green.shade100,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
-                    Icons.savings_outlined,
+                  child: HeroIcon(
+                    HeroIcons.arrowTrendingDown,
                     color: Colors.green.shade800,
                     size: 20,
                   ),

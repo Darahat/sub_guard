@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:heroicons/heroicons.dart';
 
 enum PaymentMethodType {
   creditCard('Credit Card', Icons.credit_card_outlined),
@@ -13,6 +14,24 @@ enum PaymentMethodType {
   final IconData icon;
 
   const PaymentMethodType(this.label, this.icon);
+
+  HeroIcons get heroIcon {
+    switch (this) {
+      case PaymentMethodType.creditCard:
+      case PaymentMethodType.debitCard:
+        return HeroIcons.creditCard;
+      case PaymentMethodType.paypal:
+        return HeroIcons.wallet;
+      case PaymentMethodType.bankAccount:
+        return HeroIcons.buildingLibrary;
+      case PaymentMethodType.applePay:
+        return HeroIcons.devicePhoneMobile;
+      case PaymentMethodType.googlePay:
+        return HeroIcons.globeAlt;
+      case PaymentMethodType.other:
+        return HeroIcons.banknotes;
+    }
+  }
 
   bool get supportsExpiry =>
       this == PaymentMethodType.creditCard ||

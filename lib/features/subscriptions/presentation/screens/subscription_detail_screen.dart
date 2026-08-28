@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/constants/preset_catalog.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -40,24 +41,32 @@ class SubscriptionDetailScreen extends ConsumerWidget {
         title: Text(subscription.serviceName),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit_outlined),
+            icon: const HeroIcon(HeroIcons.pencilSquare, size: 20),
             onPressed: () {
               HapticFeedback.lightImpact();
               context.push('/subscriptions/edit/$subscriptionId');
             },
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: AppColors.error),
+            icon: const HeroIcon(
+              HeroIcons.trash,
+              color: AppColors.error,
+              size: 20,
+            ),
             onPressed: () => _showDeleteDialog(context, ref, subscription),
           ),
         ],
       ),
       body: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.paddingOf(context).bottom + 24,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header Card
+            // Hero Card
             Container(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -65,9 +74,17 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                   end: Alignment.bottomRight,
                   colors: [
                     AppColors.primary,
-                    AppColors.primary.withValues(alpha: 0.8),
+                    AppColors.primary.withValues(alpha: 0.85),
                   ],
                 ),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
@@ -76,46 +93,52 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                     child: ServiceBrandIcon(
                       serviceName: subscription.serviceName,
                       customColor: preset?.brandColor,
-                      size: 72,
-                      borderRadius: 20,
+                      size: 64,
+                      borderRadius: 16,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   Text(
                     subscription.serviceName,
                     style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
                       color: Colors.white,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  if (subscription.category != null &&
-                      subscription.category!.isNotEmpty)
-                    Container(
-                      margin: const EdgeInsets.only(top: 6),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        subscription.category!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.2,
-                        ),
+                  const SizedBox(height: 8),
+                  Text(
+                    CurrencyHelper.formatAmount(
+                      subscription.amount,
+                      currency: subscription.currency,
+                    ),
+                    style: const TextStyle(
+                      fontSize: 42,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Next Bill: ${_formatDate(subscription.nextBillingDate)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -125,7 +148,128 @@ class SubscriptionDetailScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 1. Dedicated Cancellation Vault Card
+                  // Grouped Billing Details
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4, bottom: 8),
+                    child: Text(
+                      'BILLING DETAILS',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.grey.withValues(alpha: 0.15),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: _buildInfoRow(
+                            'Category',
+                            subscription.category ?? 'Uncategorized',
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: _buildInfoRow(
+                            'Cycle',
+                            subscription.billingCycleText,
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: _buildInfoRow(
+                            'Days Remaining',
+                            '${subscription.daysUntilBilling} days',
+                          ),
+                        ),
+                        if (subscription.isSharedPlan) ...[
+                          const Divider(height: 1),
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: _buildInfoRow(
+                              'My Share',
+                              CurrencyHelper.formatAmount(
+                                subscription.myShareAmount ??
+                                    (subscription.amount /
+                                        (subscription.splitCount ?? 2)),
+                                currency: subscription.currency,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Record Renewal Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      icon: const HeroIcon(HeroIcons.checkCircle, size: 20),
+                      label: const Text(
+                        'Record Renewal Payment',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => PaymentConfirmationDialog(
+                            subscription: subscription,
+                            onConfirmedCharge: () async {
+                              final nextDate = _calculateNextDate(
+                                subscription.nextBillingDate,
+                                subscription.billingCycle,
+                              );
+                              await ref
+                                  .read(subscriptionNotifierProvider.notifier)
+                                  .updateSubscription(
+                                    subscription.copyWith(
+                                      nextBillingDate: nextDate,
+                                    ),
+                                  );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '✓ Next billing date advanced to ${_formatDate(nextDate)}',
+                                    ),
+                                    backgroundColor: AppColors.success,
+                                  ),
+                                );
+                              }
+                            },
+                            onOpenCancellation: () {},
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Dedicated Cancellation Vault Card
                   if (!isCancelled) ...[
                     CancellationVaultCard(
                       preset:
@@ -165,9 +309,10 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.check_circle,
+                          const HeroIcon(
+                            HeroIcons.checkCircle,
                             color: AppColors.success,
+                            size: 20,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -196,105 +341,6 @@ class SubscriptionDetailScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 20),
                   ],
-
-                  // 2. Billing Information
-                  Card(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          _buildInfoRow(
-                            'Amount',
-                            CurrencyHelper.formatAmount(
-                              subscription.amount,
-                              currency: subscription.currency,
-                            ),
-                            isBold: true,
-                          ),
-                          const Divider(height: 20),
-                          _buildInfoRow(
-                            'Billing Cycle',
-                            subscription.billingCycleText,
-                          ),
-                          const Divider(height: 20),
-                          _buildInfoRow(
-                            'Next Billing Date',
-                            _formatDate(subscription.nextBillingDate),
-                          ),
-                          const Divider(height: 20),
-                          _buildInfoRow(
-                            'Days Until Billing',
-                            '${subscription.daysUntilBilling} days',
-                          ),
-                          const Divider(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.tonalIcon(
-                              style: FilledButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                              ),
-                              icon: const Icon(
-                                Icons.check_circle_outline,
-                                size: 18,
-                              ),
-                              label: const Text(
-                                'Record Renewal / Advance Date',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              onPressed: () {
-                                HapticFeedback.lightImpact();
-                                showDialog(
-                                  context: context,
-                                  builder: (ctx) => PaymentConfirmationDialog(
-                                    subscription: subscription,
-                                    onConfirmedCharge: () async {
-                                      final nextDate = _calculateNextDate(
-                                        subscription.nextBillingDate,
-                                        subscription.billingCycle,
-                                      );
-                                      await ref
-                                          .read(
-                                            subscriptionNotifierProvider
-                                                .notifier,
-                                          )
-                                          .updateSubscription(
-                                            subscription.copyWith(
-                                              nextBillingDate: nextDate,
-                                            ),
-                                          );
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              '✓ Next billing date advanced to ${_formatDate(nextDate)}',
-                                            ),
-                                            backgroundColor: AppColors.success,
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    onOpenCancellation: () {},
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
 
                   // 2.5. Price History Timeline (Phase 16)
                   PriceHistoryTimeline(subscription: subscription),
@@ -347,7 +393,7 @@ class SubscriptionDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     SubscriptionEntity subscription,
   ) {
-    HapticFeedback.heavyImpact();
+    HapticFeedback.mediumImpact();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -379,7 +425,7 @@ class SubscriptionDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     SubscriptionEntity subscription,
   ) {
-    HapticFeedback.heavyImpact();
+    HapticFeedback.mediumImpact();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(

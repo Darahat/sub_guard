@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_helper.dart';
@@ -35,19 +36,14 @@ class ContractShieldCard extends ConsumerWidget {
     }).length;
 
     final isCritical = criticalCount > 0;
-    final bannerColor = isCritical ? Colors.red.shade50 : Colors.amber.shade50;
-    final borderColor = isCritical
-        ? Colors.red.shade200
-        : Colors.amber.shade200;
     final accentColor = isCritical ? AppColors.error : AppColors.warning;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: bannerColor,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -57,39 +53,36 @@ class ContractShieldCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.15),
+                  color: accentColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  isCritical ? Icons.emergency_rounded : Icons.shield_outlined,
+                child: HeroIcon(
+                  HeroIcons.clock,
                   color: accentColor,
                   size: 20,
+                  style: HeroIconStyle.solid,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isCritical
-                          ? 'Critical Cancellation Notice Period'
-                          : 'Contract Cancellation Notice Approaching',
+                      'Action Hub: Contracts',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: isCritical
-                            ? Colors.red.shade900
-                            : Colors.amber.shade900,
+                        color: AppColors.textPrimary,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
-                      '${activeContractSubs.length} subscription(s) require advance cancellation to avoid lock-in.',
+                      '${activeContractSubs.length} subscription(s) require action to avoid lock-in.',
                       style: TextStyle(
-                        fontSize: 11,
-                        color: isCritical
-                            ? Colors.red.shade800
-                            : Colors.amber.shade900,
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -97,14 +90,14 @@ class ContractShieldCard extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
           // Items list
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: activeContractSubs.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final sub = activeContractSubs[index];
               final contract = sub.contractCommitment!;
@@ -112,35 +105,77 @@ class ContractShieldCard extends ConsumerWidget {
               final deadline = contract.cancellationDeadline;
               final daysLeft = contract.daysUntilDeadline(now);
 
-              String badgeText;
-              Color badgeColor;
-              Color badgeTextColor;
-
+              Color progressColor;
               if (risk == ContractRiskStatus.critical) {
-                badgeText = daysLeft == 0
-                    ? 'Deadline Today!'
-                    : '$daysLeft days left';
-                badgeColor = Colors.red.shade100;
-                badgeTextColor = AppColors.error;
+                progressColor = AppColors.error;
               } else if (risk == ContractRiskStatus.approaching) {
-                badgeText = '$daysLeft days left';
-                badgeColor = Colors.amber.shade100;
-                badgeTextColor = Colors.amber.shade900;
+                progressColor = AppColors.warning;
               } else {
-                badgeText = 'Window Passed';
-                badgeColor = Colors.grey.shade200;
-                badgeTextColor = Colors.grey.shade800;
+                progressColor = Colors.grey;
               }
 
+              final totalNoticeDays = contract.cancellationNoticeDays
+                  .toDouble();
+              // Prevent division by zero and cap progress between 0.0 and 1.0
+              final safeNoticeDays = totalNoticeDays > 0
+                  ? totalNoticeDays
+                  : 1.0;
+              final progressValue =
+                  risk == ContractRiskStatus.cancellationWindowPassed
+                  ? 0.0
+                  : (daysLeft.clamp(0, safeNoticeDays) / safeNoticeDays)
+                        .toDouble();
+
               return Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: borderColor),
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
                 child: Row(
                   children: [
+                    SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            value: progressValue,
+                            color: progressColor,
+                            backgroundColor: Colors.grey.shade200,
+                            strokeWidth: 3,
+                          ),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                risk ==
+                                        ContractRiskStatus
+                                            .cancellationWindowPassed
+                                    ? '0'
+                                    : '$daysLeft',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: progressColor,
+                                ),
+                              ),
+                              const Text(
+                                'days',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,75 +184,53 @@ class ContractShieldCard extends ConsumerWidget {
                             sub.serviceName,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 13,
+                              fontSize: 14,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Cancel by ${DateHelper.formatDisplayDate(deadline)} (${contract.cancellationNoticeDays}d notice required)',
+                            'Cancel by ${DateHelper.formatDisplayDate(deadline)}',
                             style: const TextStyle(
-                              fontSize: 11,
+                              fontSize: 12,
                               color: AppColors.textSecondary,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                    IconButton(
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        context.push('/vault');
+                      },
+                      icon: const HeroIcon(
+                        HeroIcons.chevronRight,
+                        size: 20,
+                        color: AppColors.textSecondary,
                       ),
-                      decoration: BoxDecoration(
-                        color: badgeColor,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        badgeText,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: badgeTextColor,
-                        ),
-                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
               );
             },
           ),
-          const SizedBox(height: 10),
-
-          // Shortcut to Cancellation Vault
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: isCritical
-                  ? AppColors.error
-                  : Colors.amber.shade900,
-              side: BorderSide(
-                color: isCritical ? Colors.red.shade300 : Colors.amber.shade400,
+          const SizedBox(height: 16),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              HeroIcon(
+                HeroIcons.informationCircle,
+                size: 13,
+                color: AppColors.textSecondary,
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+              SizedBox(width: 6),
+              Text(
+                'Verify provider terms. Tap an item for Cancellation Vault.',
+                style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-            ),
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              context.push('/vault');
-            },
-            icon: const Icon(Icons.open_in_new, size: 14),
-            label: const Text(
-              'Open Cancellation Vault Steps',
-              style: TextStyle(fontSize: 12),
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            '⚠️ Based on your entered notice period. Check your provider\'s terms to confirm exact requirements.',
-            style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
-            textAlign: TextAlign.center,
+            ],
           ),
         ],
       ),
