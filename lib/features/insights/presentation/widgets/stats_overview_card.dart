@@ -119,11 +119,15 @@ class StatsOverviewCard extends StatelessWidget {
                 label.toUpperCase(),
                 style: AppTypography.sectionOverhead.copyWith(fontSize: 10),
               ),
-              Text(
-                value,
-                style: AppTypography.cardFinancial.copyWith(
-                  fontSize: 18,
-                  color: color,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: AppTypography.cardFinancial.copyWith(
+                    fontSize: 18,
+                    color: color,
+                  ),
                 ),
               ),
             ],

@@ -20,6 +20,7 @@ import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/subscriptions/presentation/screens/add_edit_subscription_screen.dart';
 import '../../features/subscriptions/presentation/screens/dashboard_screen.dart';
 import '../../features/subscriptions/presentation/screens/subscription_detail_screen.dart';
+import '../layout/responsive_layout.dart';
 import '../services/onboarding_service.dart';
 import '../theme/app_colors.dart';
 
@@ -220,53 +221,102 @@ class AppRouter {
 }
 
 // Stateful Bottom Navigation Shell Scaffold
+// - Mobile  (< 600dp):  BottomNavigationBar (unchanged behaviour)
+// - Tablet  (>= 600dp): NavigationRail — compact, icons only
+// - Desktop (>= 900dp): NavigationRail — extended, icons + labels
 class MainBottomNavScaffold extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainBottomNavScaffold({super.key, required this.navigationShell});
 
+  void _onBranchSelected(int index) {
+    HapticFeedback.selectionClick();
+    navigationShell.goBranch(
+      index,
+      initialLocation: index == navigationShell.currentIndex,
+    );
+  }
+
+  // ── Shared destination data ──────────────────────────────────────────────
+  static const _icons = [
+    HeroIcons.rectangleStack,
+    HeroIcons.chartPie,
+    HeroIcons.cog6Tooth,
+  ];
+  static const _labels = ['Subscriptions', 'Insights', 'Settings'];
+
+  // ── NavigationRail destinations ──────────────────────────────────────────
+  List<NavigationRailDestination> get _railDestinations => List.generate(
+    _icons.length,
+    (i) => NavigationRailDestination(
+      icon: HeroIcon(_icons[i], size: 22),
+      selectedIcon: HeroIcon(_icons[i], style: HeroIconStyle.solid, size: 22),
+      label: Text(_labels[i]),
+    ),
+  );
+
+  // ── BottomNavigationBar destinations ────────────────────────────────────
+  List<NavigationDestination> get _barDestinations => List.generate(
+    _icons.length,
+    (i) => NavigationDestination(
+      icon: HeroIcon(_icons[i], size: 22),
+      selectedIcon: HeroIcon(_icons[i], style: HeroIconStyle.solid, size: 22),
+      label: _labels[i],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
+    final isTablet = Breakpoints.isTablet(context);
+    final isDesktop = Breakpoints.isDesktop(context);
+
+    // ── Tablet / Desktop → NavigationRail ───────────────────────────────
+    if (isTablet) {
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              extended: isDesktop,
+              selectedIndex: navigationShell.currentIndex,
+              onDestinationSelected: _onBranchSelected,
+              labelType: isDesktop
+                  ? NavigationRailLabelType
+                        .none // labels inline when extended
+                  : NavigationRailLabelType.selected,
+              leading: isDesktop
+                  ? Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.asset(
+                          'assets/logos/icon.png',
+                          width: 40,
+                          height: 40,
+                          errorBuilder: (_, _, _) => const HeroIcon(
+                            HeroIcons.shieldCheck,
+                            size: 40,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    )
+                  : null,
+              destinations: _railDestinations,
+            ),
+            const VerticalDivider(width: 1, thickness: 1),
+            Expanded(child: navigationShell),
+          ],
+        ),
+      );
+    }
+
+    // ── Mobile → BottomNavigationBar (unchanged) ─────────────────────────
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) {
-          HapticFeedback.selectionClick();
-          navigationShell.goBranch(
-            index,
-            initialLocation: index == navigationShell.currentIndex,
-          );
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: HeroIcon(HeroIcons.rectangleStack, size: 22),
-            selectedIcon: HeroIcon(
-              HeroIcons.rectangleStack,
-              style: HeroIconStyle.solid,
-              size: 22,
-            ),
-            label: 'Subscriptions',
-          ),
-          NavigationDestination(
-            icon: HeroIcon(HeroIcons.chartPie, size: 22),
-            selectedIcon: HeroIcon(
-              HeroIcons.chartPie,
-              style: HeroIconStyle.solid,
-              size: 22,
-            ),
-            label: 'Insights',
-          ),
-          NavigationDestination(
-            icon: HeroIcon(HeroIcons.cog6Tooth, size: 22),
-            selectedIcon: HeroIcon(
-              HeroIcons.cog6Tooth,
-              style: HeroIconStyle.solid,
-              size: 22,
-            ),
-            label: 'Settings',
-          ),
-        ],
+        onDestinationSelected: _onBranchSelected,
+        destinations: _barDestinations,
       ),
     );
   }

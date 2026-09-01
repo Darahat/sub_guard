@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/layout/responsive_layout.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_helper.dart';
 import '../../domain/entities/subscription_entity.dart';
@@ -134,6 +135,9 @@ class SubscriptionHealthCard extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      constraints: Breakpoints.isTablet(context)
+          ? const BoxConstraints(maxWidth: 600)
+          : null,
       builder: (ctx) {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),

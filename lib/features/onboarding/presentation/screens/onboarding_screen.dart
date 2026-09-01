@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:heroicons/heroicons.dart';
 
+import '../../../../core/layout/responsive_layout.dart';
 import '../../../../core/services/onboarding_service.dart';
 import '../../../../core/theme/app_colors.dart';
 
@@ -23,7 +25,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       title: 'Master Your Subscriptions',
       subtitle:
           'Track Netflix, Spotify, gym memberships, and cloud tools in one organized dashboard.',
-      icon: Icons.subscriptions_rounded,
+      imageAsset: 'assets/logos/icon.png',
       accentColor: AppColors.primary,
       heroBadge: 'ZERO CHAOS',
       highlightPoints: [
@@ -36,7 +38,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       title: 'Smart Renewal Shield',
       subtitle:
           'Get notified 1, 3, or 7 days before you get charged. Cancel free trials before they auto-renew.',
-      icon: Icons.shield_outlined,
+      heroIcon: HeroIcons.shieldCheck,
       accentColor: Colors.amber.shade800,
       heroBadge: 'NEVER OVERPAY',
       highlightPoints: [
@@ -49,7 +51,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       title: 'Visual Spending Insights',
       subtitle:
           'See where your money goes with category breakdowns, spending trends, and top cost rankings.',
-      icon: Icons.pie_chart_outline_rounded,
+      heroIcon: HeroIcons.chartPie,
       accentColor: Colors.purple,
       heroBadge: 'FINANCIAL CLARITY',
       highlightPoints: [
@@ -62,7 +64,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       title: 'Private, Secure & Exportable',
       subtitle:
           'Local-first database with Face ID lock, Cloud backup, and standard CSV data export.',
-      icon: Icons.lock_outline_rounded,
+      heroIcon: HeroIcons.lockClosed,
       accentColor: Colors.teal,
       heroBadge: 'YOU OWN YOUR DATA',
       highlightPoints: [
@@ -108,290 +110,329 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ],
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Slide Carousel
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: _slides.length,
-                physics:
-                    const BouncingScrollPhysics(), // Interactive swipe physics
-                onPageChanged: (index) {
-                  HapticFeedback.selectionClick(); // Haptic tick
-                  setState(() => _currentPage = index);
-                },
-                itemBuilder: (context, index) {
-                  final slide = _slides[index];
-
-                  return AnimatedBuilder(
-                    animation: _pageController,
-                    builder: (context, child) {
-                      double pageValue = index.toDouble();
-                      if (_pageController.position.haveDimensions) {
-                        pageValue = _pageController.page ?? index.toDouble();
-                      }
-                      final double delta = (pageValue - index).clamp(-1.0, 1.0);
-
-                      // Parallax translation and fade
-                      final double translation = delta * 150.0;
-                      final double opacity = (1 - delta.abs()).clamp(0.0, 1.0);
-
-                      return Transform.translate(
-                        offset: Offset(translation, 0),
-                        child: Opacity(opacity: opacity, child: child),
-                      );
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: Breakpoints.isTablet(context) ? 560 : double.infinity,
+            ),
+            child: Column(
+              children: [
+                // Slide Carousel
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: _slides.length,
+                    physics:
+                        const BouncingScrollPhysics(), // Interactive swipe physics
+                    onPageChanged: (index) {
+                      HapticFeedback.selectionClick(); // Haptic tick
+                      setState(() => _currentPage = index);
                     },
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 8,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Hero Icon with Gradient Background
-                          Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  slide.accentColor.withValues(alpha: 0.15),
-                                  slide.accentColor.withValues(alpha: 0.05),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: slide.accentColor.withValues(alpha: 0.3),
-                                width: 2,
-                              ),
-                            ),
-                            child: Icon(
-                              slide.icon,
-                              size: 48,
-                              color: slide.accentColor,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final slide = _slides[index];
 
-                          // Hero Badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: slide.accentColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              slide.heroBadge,
-                              style: TextStyle(
-                                color: slide.accentColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
+                      return AnimatedBuilder(
+                        animation: _pageController,
+                        builder: (context, child) {
+                          double pageValue = index.toDouble();
+                          if (_pageController.position.haveDimensions) {
+                            pageValue =
+                                _pageController.page ?? index.toDouble();
+                          }
+                          final double delta = (pageValue - index).clamp(
+                            -1.0,
+                            1.0,
+                          );
 
-                          // Title
-                          Text(
-                            slide.title,
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: -0.5,
-                                  color: AppColors.textPrimary, // Rule 2 & 4
-                                ),
-                          ),
-                          const SizedBox(height: 8),
+                          // Parallax translation and fade
+                          final double translation = delta * 150.0;
+                          final double opacity = (1 - delta.abs()).clamp(
+                            0.0,
+                            1.0,
+                          );
 
-                          // Subtitle
-                          Text(
-                            slide.subtitle,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSecondary, // Rule 2
-                              height: 1.35,
-                            ),
+                          return Transform.translate(
+                            offset: Offset(translation, 0),
+                            child: Opacity(opacity: opacity, child: child),
+                          );
+                        },
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 8,
                           ),
-                          const SizedBox(height: 16),
-
-                          // Highlight Points Card
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surface,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Theme.of(
-                                  context,
-                                ).dividerColor.withValues(alpha: 0.1),
-                              ),
-                            ),
-                            child: Column(
-                              children: slide.highlightPoints.map((point) {
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 3,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Hero Icon / Logo with Gradient Background
+                              Container(
+                                width: 100,
+                                height: 100,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      slide.accentColor.withValues(alpha: 0.15),
+                                      slide.accentColor.withValues(alpha: 0.05),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.check_circle,
-                                        color: slide.accentColor,
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          point,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                            color: AppColors.textPrimary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: slide.accentColor.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: slide.imageAsset != null
+                                    ? ClipOval(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: Image.asset(
+                                            slide.imageAsset!,
+                                            fit: BoxFit.contain,
                                           ),
                                         ),
+                                      )
+                                    : Center(
+                                        child: HeroIcon(
+                                          slide.heroIcon ?? HeroIcons.sparkles,
+                                          size: 48,
+                                          color: slide.accentColor,
+                                        ),
                                       ),
-                                    ],
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Hero Badge
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: slide.accentColor.withValues(
+                                    alpha: 0.1,
                                   ),
-                                );
-                              }).toList(),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  slide.heroBadge,
+                                  style: TextStyle(
+                                    color: slide.accentColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+
+                              // Title
+                              Text(
+                                slide.title,
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: -0.5,
+                                      color:
+                                          AppColors.textPrimary, // Rule 2 & 4
+                                    ),
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Subtitle
+                              Text(
+                                slide.subtitle,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary, // Rule 2
+                                  height: 1.35,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Highlight Points Card
+                              Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Theme.of(
+                                      context,
+                                    ).dividerColor.withValues(alpha: 0.1),
+                                  ),
+                                ),
+                                child: Column(
+                                  children: slide.highlightPoints.map((point) {
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 3,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          HeroIcon(
+                                            HeroIcons.checkCircle,
+                                            color: slide.accentColor,
+                                            size: 16,
+                                            style: HeroIconStyle.solid,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              point,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                // Dots Indicator
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(_slides.length, (index) {
+                    final isSelected = _currentPage == index;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: isSelected ? 24 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primary
+                            : Theme.of(context).dividerColor,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 24),
+
+                // Bottom Actions
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      // Primary Continue / Guest Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
+                          onPressed: () {
+                            if (isLastPage) {
+                              _completeOnboarding();
+                            } else {
+                              _pageController.nextPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
+                            }
+                          },
+                          child: Text(
+                            isLastPage ? 'Continue as Guest' : 'Continue',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
+                      const SizedBox(height: 10),
 
-            // Dots Indicator
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_slides.length, (index) {
-                final isSelected = _currentPage == index;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: isSelected ? 24 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primary
-                        : Theme.of(context).dividerColor,
-                    borderRadius: BorderRadius.circular(4),
+                      // If last page: Show Sign In button; otherwise: Interactive Tour button
+                      if (isLastPage)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: AppColors.primary),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            icon: const HeroIcon(
+                              HeroIcons.arrowRightOnRectangle,
+                              size: 20,
+                              color: AppColors.primary,
+                            ),
+                            label: const Text(
+                              'Sign In / Create Account',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            onPressed: () =>
+                                _completeOnboarding(openLogin: true),
+                          ),
+                        )
+                      else
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: Theme.of(context).dividerColor,
+                              ),
+                              foregroundColor: AppColors.textPrimary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            icon: const HeroIcon(
+                              HeroIcons.sparkles,
+                              size: 20,
+                              color: AppColors.primary,
+                            ),
+                            label: const Text(
+                              'Take a Quick Interactive Tour',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            onPressed: () => context.push('/onboarding/tour'),
+                          ),
+                        ),
+                    ],
                   ),
-                );
-              }),
+                ),
+                const SizedBox(height: 20),
+              ],
             ),
-            const SizedBox(height: 24),
-
-            // Bottom Actions
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  // Primary Continue / Guest Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        elevation: 0,
-                      ),
-                      onPressed: () {
-                        if (isLastPage) {
-                          _completeOnboarding();
-                        } else {
-                          _pageController.nextPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        }
-                      },
-                      child: Text(
-                        isLastPage ? 'Continue as Guest' : 'Continue',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // If last page: Show Sign In button; otherwise: Interactive Tour button
-                  if (isLastPage)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.primary),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        icon: const Icon(
-                          Icons.login,
-                          size: 20,
-                          color: AppColors.primary,
-                        ),
-                        label: const Text(
-                          'Sign In / Create Account',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        onPressed: () => _completeOnboarding(openLogin: true),
-                      ),
-                    )
-                  else
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: Theme.of(context).dividerColor,
-                          ),
-                          foregroundColor: AppColors.textPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        icon: const Icon(Icons.explore_outlined, size: 20),
-                        label: const Text(
-                          'Take a Quick Interactive Tour',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        onPressed: () => context.push('/onboarding/tour'),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
+          ),
         ),
       ),
     );
@@ -401,7 +442,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 class OnboardingSlideData {
   final String title;
   final String subtitle;
-  final IconData icon;
+  final HeroIcons? heroIcon;
+  final String? imageAsset;
   final Color accentColor;
   final String heroBadge;
   final List<String> highlightPoints;
@@ -409,7 +451,8 @@ class OnboardingSlideData {
   OnboardingSlideData({
     required this.title,
     required this.subtitle,
-    required this.icon,
+    this.heroIcon,
+    this.imageAsset,
     required this.accentColor,
     required this.heroBadge,
     required this.highlightPoints,

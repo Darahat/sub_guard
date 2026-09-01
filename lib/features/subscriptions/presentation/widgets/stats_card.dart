@@ -41,14 +41,22 @@ class StatsCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           if (amount != null)
-            Text(
-              CurrencyHelper.formatAmount(amount!),
-              style: AppTypography.cardFinancial.copyWith(color: color),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                CurrencyHelper.formatAmount(amount!),
+                style: AppTypography.cardFinancial.copyWith(color: color),
+              ),
             )
           else if (count != null)
-            Text(
-              count.toString(),
-              style: AppTypography.cardFinancial.copyWith(color: color),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                count.toString(),
+                style: AppTypography.cardFinancial.copyWith(color: color),
+              ),
             ),
         ],
       ),

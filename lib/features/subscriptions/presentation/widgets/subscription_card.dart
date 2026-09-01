@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/currency/currency_converter.dart';
+import '../../../../core/layout/responsive_layout.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/currency_helper.dart';
@@ -29,6 +30,9 @@ class SubscriptionCard extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      constraints: Breakpoints.isTablet(context)
+          ? const BoxConstraints(maxWidth: 600)
+          : null,
       builder: (ctx) => PaymentConfirmationDialog(
         subscription: subscription,
         onConfirmedCharge: () async {
@@ -150,6 +154,9 @@ class SubscriptionCard extends ConsumerWidget {
                 context: context,
                 isScrollControlled: true,
                 backgroundColor: Colors.transparent,
+                constraints: Breakpoints.isTablet(context)
+                    ? const BoxConstraints(maxWidth: 600)
+                    : null,
                 builder: (_) => const PaywallBottomSheet(),
               );
               return false;

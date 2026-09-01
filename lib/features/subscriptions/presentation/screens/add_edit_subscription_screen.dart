@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/preset_catalog.dart';
 import '../../../../core/currency/currency_converter.dart';
+import '../../../../core/layout/responsive_layout.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_helper.dart';
 import '../../../../core/utils/date_helper.dart';
@@ -278,6 +279,9 @@ class _AddEditSubscriptionScreenState
             context: context,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
+            constraints: Breakpoints.isTablet(context)
+                ? const BoxConstraints(maxWidth: 600)
+                : null,
             builder: (_) => const PaywallBottomSheet(),
           );
         }
@@ -416,777 +420,812 @@ class _AddEditSubscriptionScreenState
       ),
       body: SafeArea(
         bottom: true,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // 1. Preset Catalog Quick Selector
-                if (!isEditing) ...[
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.bolt,
-                        color: AppColors.primary,
-                        size: 18,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: Breakpoints.isTablet(context) ? 680 : double.infinity,
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 1. Preset Catalog Quick Selector
+                    if (!isEditing) ...[
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.bolt,
+                            color: AppColors.primary,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Quick Presets (50+ Top Services)',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'Quick Presets (50+ Top Services)',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
+                      const SizedBox(height: 8),
+
+                      // Category Filter Pills
+                      SizedBox(
+                        height: 34,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: PresetCatalog.categories.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 6),
+                          itemBuilder: (context, index) {
+                            final cat = PresetCatalog.categories[index];
+                            final isSelected = _selectedPresetCategory == cat;
+                            return ChoiceChip(
+                              label: Text(cat),
+                              selected: isSelected,
+                              showCheckmark: false,
+                              labelStyle: TextStyle(
+                                fontSize: 12,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppColors.textSecondary,
+                              ),
+                              selectedColor: AppColors.primary,
+                              backgroundColor: Colors.grey.withValues(
+                                alpha: 0.08,
+                              ),
+                              onSelected: (_) =>
+                                  setState(() => _selectedPresetCategory = cat),
+                            );
+                          },
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
+                      const SizedBox(height: 10),
 
-                  // Category Filter Pills
-                  SizedBox(
-                    height: 34,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: PresetCatalog.categories.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 6),
-                      itemBuilder: (context, index) {
-                        final cat = PresetCatalog.categories[index];
-                        final isSelected = _selectedPresetCategory == cat;
-                        return ChoiceChip(
-                          label: Text(cat),
-                          selected: isSelected,
-                          showCheckmark: false,
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.textSecondary,
-                          ),
-                          selectedColor: AppColors.primary,
-                          backgroundColor: Colors.grey.withValues(alpha: 0.08),
-                          onSelected: (_) =>
-                              setState(() => _selectedPresetCategory = cat),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Preset services horizontal scroll list
-                  SizedBox(
-                    height: 40,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: PresetCatalog.services
-                          .where(
-                            (s) =>
-                                _selectedPresetCategory == 'All' ||
-                                s.category == _selectedPresetCategory,
-                          )
-                          .map((preset) {
-                            final isSelected =
-                                _serviceNameController.text.toLowerCase() ==
-                                preset.name.toLowerCase();
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: ActionChip(
-                                avatar: Container(
-                                  width: 18,
-                                  height: 18,
-                                  decoration: BoxDecoration(
-                                    color: preset.brandColor,
-                                    shape: BoxShape.circle,
+                      // Preset services horizontal scroll list
+                      SizedBox(
+                        height: 40,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: PresetCatalog.services
+                              .where(
+                                (s) =>
+                                    _selectedPresetCategory == 'All' ||
+                                    s.category == _selectedPresetCategory,
+                              )
+                              .map((preset) {
+                                final isSelected =
+                                    _serviceNameController.text.toLowerCase() ==
+                                    preset.name.toLowerCase();
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: ActionChip(
+                                    avatar: Container(
+                                      width: 18,
+                                      height: 18,
+                                      decoration: BoxDecoration(
+                                        color: preset.brandColor,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          preset.name[0],
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    label: Text(preset.name),
+                                    backgroundColor: isSelected
+                                        ? AppColors.primary
+                                        : AppColors.primary.withValues(
+                                            alpha: 0.06,
+                                          ),
+                                    labelStyle: TextStyle(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                    onPressed: () =>
+                                        _applyPresetService(preset),
                                   ),
-                                  child: Center(
-                                    child: Text(
-                                      preset.name[0],
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
+                                );
+                              })
+                              .toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // 2. Free Trial Mode Toggle
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _isTrial
+                            ? AppColors.warning.withValues(alpha: 0.1)
+                            : Colors.grey.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _isTrial
+                              ? AppColors.warning.withValues(alpha: 0.3)
+                              : Colors.transparent,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.hourglass_top_rounded,
+                                color: _isTrial
+                                    ? AppColors.warning
+                                    : AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Free Trial Mode',
+                                      style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                  ),
-                                ),
-                                label: Text(preset.name),
-                                backgroundColor: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.primary.withValues(alpha: 0.06),
-                                labelStyle: TextStyle(
-                                  color: isSelected
-                                      ? Colors.white
-                                      : AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                                onPressed: () => _applyPresetService(preset),
-                              ),
-                            );
-                          })
-                          .toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                // 2. Free Trial Mode Toggle
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _isTrial
-                        ? AppColors.warning.withValues(alpha: 0.1)
-                        : Colors.grey.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _isTrial
-                          ? AppColors.warning.withValues(alpha: 0.3)
-                          : Colors.transparent,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.hourglass_top_rounded,
-                            color: _isTrial
-                                ? AppColors.warning
-                                : AppColors.textSecondary,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Free Trial Mode',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  'Get cancellation reminders before trial converts',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch(
-                            value: _isTrial,
-                            activeThumbColor: AppColors.warning,
-                            onChanged: (val) {
-                              HapticFeedback.selectionClick();
-                              setState(() {
-                                _isTrial = val;
-                                if (val) _setTrialDuration(7);
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                      if (_isTrial) ...[
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          alignment: WrapAlignment.center,
-                          children: [3, 7, 14, 30].map((days) {
-                            return OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 6,
-                                ),
-                                side: BorderSide(
-                                  color: AppColors.warning.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                ),
-                              ),
-                              onPressed: () => _setTrialDuration(days),
-                              child: Text('$days Days'),
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // 3. Service Name
-                TextFormField(
-                  controller: _serviceNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Service Name *',
-                    hintText: 'e.g., Netflix, Spotify',
-                    prefixIcon: const Icon(Icons.subscriptions),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  validator: Validators.required,
-                  enabled: !subscriptionState.isLoading,
-                ),
-                const SizedBox(height: 16),
-
-                // 4. Amount & Currency
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextFormField(
-                        controller: _amountController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: InputDecoration(
-                          labelText: 'Total Amount *',
-                          hintText: '0.00',
-                          prefixIcon: const Icon(Icons.attach_money),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        validator: Validators.amount,
-                        enabled: !subscriptionState.isLoading,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 1,
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _selectedCurrency,
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                          labelText: 'Currency',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        items: AppConstants.supportedCurrencies
-                            .map(
-                              (currency) => DropdownMenuItem(
-                                value: currency,
-                                child: Text(currency),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: subscriptionState.isLoading
-                            ? null
-                            : (value) =>
-                                  setState(() => _selectedCurrency = value!),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // 5. Shared / Family Plan Cost Splitter
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _isSharedPlan
-                        ? Colors.purple.shade50
-                        : Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _isSharedPlan
-                          ? Colors.purple.shade200
-                          : Colors.grey.shade200,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.group_outlined,
-                            color: _isSharedPlan ? Colors.purple : Colors.grey,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Shared / Family Plan',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  'Split costs with family or friends',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch(
-                            value: _isSharedPlan,
-                            activeThumbColor: Colors.purple,
-                            onChanged: (val) {
-                              HapticFeedback.selectionClick();
-                              setState(() => _isSharedPlan = val);
-                            },
-                          ),
-                        ],
-                      ),
-                      if (_isSharedPlan) ...[
-                        const SizedBox(height: 10),
-                        const Divider(height: 1),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            ChoiceChip(
-                              label: const Text('Equal Split'),
-                              selected: !_isCustomShare,
-                              onSelected: (_) =>
-                                  setState(() => _isCustomShare = false),
-                            ),
-                            const SizedBox(width: 8),
-                            ChoiceChip(
-                              label: const Text('Custom Share'),
-                              selected: _isCustomShare,
-                              onSelected: (_) =>
-                                  setState(() => _isCustomShare = true),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        if (!_isCustomShare) ...[
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Split between:',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: [2, 3, 4, 5, 6].map((count) {
-                                  final isSel = _splitCount == count;
-                                  return ActionChip(
-                                    label: Text('$count'),
-                                    backgroundColor: isSel
-                                        ? Colors.purple
-                                        : null,
-                                    labelStyle: TextStyle(
-                                      color: isSel
-                                          ? Colors.white
-                                          : Colors.black87,
-                                      fontWeight: isSel
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                      fontSize: 11,
+                                    Text(
+                                      'Get cancellation reminders before trial converts',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                      ),
                                     ),
-                                    onPressed: () =>
-                                        setState(() => _splitCount = count),
-                                  );
-                                }).toList(),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: _isTrial,
+                                activeThumbColor: AppColors.warning,
+                                onChanged: (val) {
+                                  HapticFeedback.selectionClick();
+                                  setState(() {
+                                    _isTrial = val;
+                                    if (val) _setTrialDuration(7);
+                                  });
+                                },
                               ),
                             ],
                           ),
-                        ] else ...[
-                          TextField(
-                            controller: _myShareController,
+                          if (_isTrial) ...[
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              alignment: WrapAlignment.center,
+                              children: [3, 7, 14, 30].map((days) {
+                                return OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 6,
+                                    ),
+                                    side: BorderSide(
+                                      color: AppColors.warning.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  onPressed: () => _setTrialDuration(days),
+                                  child: Text('$days Days'),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 3. Service Name
+                    TextFormField(
+                      controller: _serviceNameController,
+                      decoration: InputDecoration(
+                        labelText: 'Service Name *',
+                        hintText: 'e.g., Netflix, Spotify',
+                        prefixIcon: const Icon(Icons.subscriptions),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      validator: Validators.required,
+                      enabled: !subscriptionState.isLoading,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 4. Amount & Currency
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: TextFormField(
+                            controller: _amountController,
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
                             decoration: InputDecoration(
-                              labelText:
-                                  'My Personal Share ($_selectedCurrency)',
-                              prefixIcon: const Icon(Icons.person_outline),
+                              labelText: 'Total Amount *',
+                              hintText: '0.00',
+                              prefixIcon: const Icon(Icons.attach_money),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
+                            validator: Validators.amount,
+                            enabled: !subscriptionState.isLoading,
                           ),
-                        ],
-                        const SizedBox(height: 8),
-                        Text(
-                          '💡 Your monthly & budget calculations will use: ${CurrencyHelper.formatAmount(_calculatedPersonalShare, currency: _selectedCurrency)}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.purple.shade900,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 1,
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _selectedCurrency,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: 'Currency',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            items: AppConstants.supportedCurrencies
+                                .map(
+                                  (currency) => DropdownMenuItem(
+                                    value: currency,
+                                    child: Text(currency),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: subscriptionState.isLoading
+                                ? null
+                                : (value) => setState(
+                                    () => _selectedCurrency = value!,
+                                  ),
                           ),
                         ),
                       ],
-                    ],
-                  ),
-                ),
-
-                // Live Budget Impact Preview
-                _buildBudgetImpactPreview(),
-                const SizedBox(height: 16),
-
-                // 6. Annual Contract & Auto-Renew Lock-in Shield (Phase 14)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _hasContract
-                        ? Colors.amber.shade50
-                        : Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _hasContract
-                          ? Colors.amber.shade300
-                          : Colors.grey.shade200,
                     ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
+                    const SizedBox(height: 16),
+
+                    // 5. Shared / Family Plan Cost Splitter
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _isSharedPlan
+                            ? Colors.purple.shade50
+                            : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _isSharedPlan
+                              ? Colors.purple.shade200
+                              : Colors.grey.shade200,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Icon(
-                            Icons.shield_outlined,
-                            color: _hasContract
-                                ? Colors.amber.shade800
-                                : Colors.grey,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Annual / Contract Commitment',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.group_outlined,
+                                color: _isSharedPlan
+                                    ? Colors.purple
+                                    : Colors.grey,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Shared / Family Plan',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Split costs with family or friends',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                Text(
-                                  'Track cancellation notice deadlines to prevent auto-renew lock-ins',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey.shade600,
-                                  ),
+                              ),
+                              Switch(
+                                value: _isSharedPlan,
+                                activeThumbColor: Colors.purple,
+                                onChanged: (val) {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _isSharedPlan = val);
+                                },
+                              ),
+                            ],
+                          ),
+                          if (_isSharedPlan) ...[
+                            const SizedBox(height: 10),
+                            const Divider(height: 1),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                ChoiceChip(
+                                  label: const Text('Equal Split'),
+                                  selected: !_isCustomShare,
+                                  onSelected: (_) =>
+                                      setState(() => _isCustomShare = false),
+                                ),
+                                const SizedBox(width: 8),
+                                ChoiceChip(
+                                  label: const Text('Custom Share'),
+                                  selected: _isCustomShare,
+                                  onSelected: (_) =>
+                                      setState(() => _isCustomShare = true),
                                 ),
                               ],
                             ),
-                          ),
-                          Switch(
-                            value: _hasContract,
-                            activeThumbColor: Colors.amber.shade800,
-                            onChanged: (val) {
-                              HapticFeedback.selectionClick();
-                              setState(() => _hasContract = val);
-                            },
-                          ),
-                        ],
-                      ),
-                      if (_hasContract) ...[
-                        const SizedBox(height: 10),
-                        const Divider(height: 1),
-                        const SizedBox(height: 10),
-
-                        // Contract End Date Picker
-                        InkWell(
-                          onTap: _selectContractEndDate,
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Current Commitment Ends On *',
-                              prefixIcon: const Icon(Icons.event_busy_outlined),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
+                            const SizedBox(height: 10),
+                            if (!_isCustomShare) ...[
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Split between:',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: [2, 3, 4, 5, 6].map((count) {
+                                      final isSel = _splitCount == count;
+                                      return ActionChip(
+                                        label: Text('$count'),
+                                        backgroundColor: isSel
+                                            ? Colors.purple
+                                            : null,
+                                        labelStyle: TextStyle(
+                                          color: isSel
+                                              ? Colors.white
+                                              : Colors.black87,
+                                          fontWeight: isSel
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                          fontSize: 11,
+                                        ),
+                                        onPressed: () =>
+                                            setState(() => _splitCount = count),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
                               ),
-                            ),
-                            child: Text(
-                              DateHelper.formatDisplayDate(_contractEndDate),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Notice Days Selection
-                        const Text(
-                          'Required Cancellation Notice Period:',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 6,
-                          children: [7, 14, 30, 45, 60, 90].map((days) {
-                            final isSel = _cancellationNoticeDays == days;
-                            return ChoiceChip(
-                              label: Text('$days Days'),
-                              selected: isSel,
-                              selectedColor: Colors.amber.shade800,
-                              labelStyle: TextStyle(
-                                fontSize: 11,
-                                color: isSel ? Colors.white : Colors.black87,
-                                fontWeight: isSel
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
-                              onSelected: (_) {
-                                HapticFeedback.selectionClick();
-                                setState(() => _cancellationNoticeDays = days);
-                              },
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Auto-renews switch
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Auto-renews for another contract period',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Switch(
-                              value: _contractAutoRenews,
-                              activeThumbColor: Colors.amber.shade800,
-                              onChanged: (val) =>
-                                  setState(() => _contractAutoRenews = val),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-
-                        // Contract Notes
-                        TextField(
-                          controller: _contractNotesController,
-                          decoration: InputDecoration(
-                            labelText: 'Contract Cancellation Notes (Optional)',
-                            hintText:
-                                'e.g., Must send cancellation email to support',
-                            prefixIcon: const Icon(Icons.note_alt_outlined),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Calculated Cancellation Deadline Banner
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.amber.shade200),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.alarm_on,
-                                size: 18,
-                                color: Colors.amber,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  '⚠️ Cancellation Deadline: ${DateHelper.formatDisplayDate(calculatedDeadline)}\nAdvance alarms will schedule automatically.',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.amber.shade900,
-                                    height: 1.3,
+                            ] else ...[
+                              TextField(
+                                controller: _myShareController,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                decoration: InputDecoration(
+                                  labelText:
+                                      'My Personal Share ($_selectedCurrency)',
+                                  prefixIcon: const Icon(Icons.person_outline),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // 7. Billing Cycle
-                DropdownButtonFormField<BillingCycle>(
-                  initialValue: _selectedBillingCycle,
-                  decoration: InputDecoration(
-                    labelText: 'Billing Cycle *',
-                    prefixIcon: const Icon(Icons.repeat),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                            const SizedBox(height: 8),
+                            Text(
+                              '💡 Your monthly & budget calculations will use: ${CurrencyHelper.formatAmount(_calculatedPersonalShare, currency: _selectedCurrency)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.purple.shade900,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
-                  items: BillingCycle.values
-                      .map(
-                        (cycle) => DropdownMenuItem(
-                          value: cycle,
-                          child: Text(_getBillingCycleText(cycle)),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: subscriptionState.isLoading
-                      ? null
-                      : (value) =>
-                            setState(() => _selectedBillingCycle = value!),
-                ),
-                const SizedBox(height: 16),
 
-                // 7.5. Payment Method Selector (Phase 15)
-                () {
-                  final paymentMethods = ref
-                      .watch(paymentMethodNotifierProvider)
-                      .paymentMethods;
-                  return DropdownButtonFormField<String?>(
-                    value: _selectedPaymentMethodId,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: 'Payment Method (Optional)',
-                      prefixIcon: const Icon(Icons.credit_card_outlined),
-                      border: OutlineInputBorder(
+                    // Live Budget Impact Preview
+                    _buildBudgetImpactPreview(),
+                    const SizedBox(height: 16),
+
+                    // 6. Annual Contract & Auto-Renew Lock-in Shield (Phase 14)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _hasContract
+                            ? Colors.amber.shade50
+                            : Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _hasContract
+                              ? Colors.amber.shade300
+                              : Colors.grey.shade200,
+                        ),
                       ),
-                    ),
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('None / Not Specified'),
-                      ),
-                      ...paymentMethods.map((m) {
-                        return DropdownMenuItem<String?>(
-                          value: m.id,
-                          child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
                             children: [
                               Icon(
-                                m.type.icon,
-                                size: 16,
-                                color: AppColors.primary,
+                                Icons.shield_outlined,
+                                color: _hasContract
+                                    ? Colors.amber.shade800
+                                    : Colors.grey,
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 10),
                               Expanded(
-                                child: Text(
-                                  m.displayLabel,
-                                  overflow: TextOverflow.ellipsis,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Annual / Contract Commitment',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Track cancellation notice deadlines to prevent auto-renew lock-ins',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                              ),
+                              Switch(
+                                value: _hasContract,
+                                activeThumbColor: Colors.amber.shade800,
+                                onChanged: (val) {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _hasContract = val);
+                                },
                               ),
                             ],
                           ),
-                        );
-                      }),
-                    ],
-                    onChanged: subscriptionState.isLoading
-                        ? null
-                        : (val) =>
-                              setState(() => _selectedPaymentMethodId = val),
-                  );
-                }(),
-                const SizedBox(height: 16),
+                          if (_hasContract) ...[
+                            const SizedBox(height: 10),
+                            const Divider(height: 1),
+                            const SizedBox(height: 10),
 
-                // 8. Category
-                DropdownButtonFormField<String>(
-                  value: _categories.contains(_selectedCategory)
-                      ? _selectedCategory
-                      : null,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: 'Category',
-                    prefixIcon: const Icon(Icons.category_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  items: _categories
-                      .map(
-                        (category) => DropdownMenuItem(
-                          value: category,
-                          child: Text(category),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: subscriptionState.isLoading
-                      ? null
-                      : (value) => setState(() => _selectedCategory = value),
-                ),
-                const SizedBox(height: 16),
+                            // Contract End Date Picker
+                            InkWell(
+                              onTap: _selectContractEndDate,
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: 'Current Commitment Ends On *',
+                                  prefixIcon: const Icon(
+                                    Icons.event_busy_outlined,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: Text(
+                                  DateHelper.formatDisplayDate(
+                                    _contractEndDate,
+                                  ),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
 
-                // 9. Next Billing Date Picker
-                InkWell(
-                  onTap: subscriptionState.isLoading ? null : _selectDate,
-                  child: InputDecorator(
-                    decoration: InputDecoration(
-                      labelText: _isTrial
-                          ? 'Trial Ends On *'
-                          : 'Next Billing Date *',
-                      prefixIcon: const Icon(Icons.calendar_today),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                            // Notice Days Selection
+                            const Text(
+                              'Required Cancellation Notice Period:',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              children: [7, 14, 30, 45, 60, 90].map((days) {
+                                final isSel = _cancellationNoticeDays == days;
+                                return ChoiceChip(
+                                  label: Text('$days Days'),
+                                  selected: isSel,
+                                  selectedColor: Colors.amber.shade800,
+                                  labelStyle: TextStyle(
+                                    fontSize: 11,
+                                    color: isSel
+                                        ? Colors.white
+                                        : Colors.black87,
+                                    fontWeight: isSel
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                  onSelected: (_) {
+                                    HapticFeedback.selectionClick();
+                                    setState(
+                                      () => _cancellationNoticeDays = days,
+                                    );
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Auto-renews switch
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Auto-renews for another contract period',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Switch(
+                                  value: _contractAutoRenews,
+                                  activeThumbColor: Colors.amber.shade800,
+                                  onChanged: (val) =>
+                                      setState(() => _contractAutoRenews = val),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+
+                            // Contract Notes
+                            TextField(
+                              controller: _contractNotesController,
+                              decoration: InputDecoration(
+                                labelText:
+                                    'Contract Cancellation Notes (Optional)',
+                                hintText:
+                                    'e.g., Must send cancellation email to support',
+                                prefixIcon: const Icon(Icons.note_alt_outlined),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Calculated Cancellation Deadline Banner
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.amber.shade200,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.alarm_on,
+                                    size: 18,
+                                    color: Colors.amber,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '⚠️ Cancellation Deadline: ${DateHelper.formatDisplayDate(calculatedDeadline)}\nAdvance alarms will schedule automatically.',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.amber.shade900,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    child: Text(
-                      '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                // 10. Website / Cancellation URL
-                TextFormField(
-                  controller: _websiteController,
-                  keyboardType: TextInputType.url,
-                  decoration: InputDecoration(
-                    labelText: 'Website / Cancellation URL (Optional)',
-                    hintText: 'https://example.com/account',
-                    prefixIcon: const Icon(Icons.link),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    // 7. Billing Cycle
+                    DropdownButtonFormField<BillingCycle>(
+                      initialValue: _selectedBillingCycle,
+                      decoration: InputDecoration(
+                        labelText: 'Billing Cycle *',
+                        prefixIcon: const Icon(Icons.repeat),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: BillingCycle.values
+                          .map(
+                            (cycle) => DropdownMenuItem(
+                              value: cycle,
+                              child: Text(_getBillingCycleText(cycle)),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: subscriptionState.isLoading
+                          ? null
+                          : (value) =>
+                                setState(() => _selectedBillingCycle = value!),
                     ),
-                  ),
-                  enabled: !subscriptionState.isLoading,
-                ),
-                const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
-                // Save Button
-                FilledButton(
-                  onPressed: subscriptionState.isLoading
-                      ? null
-                      : _saveSubscription,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: subscriptionState.isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          isEditing
-                              ? 'Update Subscription'
-                              : 'Save Subscription',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                    // 7.5. Payment Method Selector (Phase 15)
+                    () {
+                      final paymentMethods = ref
+                          .watch(paymentMethodNotifierProvider)
+                          .paymentMethods;
+                      return DropdownButtonFormField<String?>(
+                        initialValue: _selectedPaymentMethodId,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: 'Payment Method (Optional)',
+                          prefixIcon: const Icon(Icons.credit_card_outlined),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('None / Not Specified'),
+                          ),
+                          ...paymentMethods.map((m) {
+                            return DropdownMenuItem<String?>(
+                              value: m.id,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    m.type.icon,
+                                    size: 16,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      m.displayLabel,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                        onChanged: subscriptionState.isLoading
+                            ? null
+                            : (val) => setState(
+                                () => _selectedPaymentMethodId = val,
+                              ),
+                      );
+                    }(),
+                    const SizedBox(height: 16),
+
+                    // 8. Category
+                    DropdownButtonFormField<String>(
+                      initialValue: _categories.contains(_selectedCategory)
+                          ? _selectedCategory
+                          : null,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: 'Category',
+                        prefixIcon: const Icon(Icons.category_outlined),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: _categories
+                          .map(
+                            (category) => DropdownMenuItem(
+                              value: category,
+                              child: Text(category),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: subscriptionState.isLoading
+                          ? null
+                          : (value) =>
+                                setState(() => _selectedCategory = value),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 9. Next Billing Date Picker
+                    InkWell(
+                      onTap: subscriptionState.isLoading ? null : _selectDate,
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: _isTrial
+                              ? 'Trial Ends On *'
+                              : 'Next Billing Date *',
+                          prefixIcon: const Icon(Icons.calendar_today),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 10. Website / Cancellation URL
+                    TextFormField(
+                      controller: _websiteController,
+                      keyboardType: TextInputType.url,
+                      decoration: InputDecoration(
+                        labelText: 'Website / Cancellation URL (Optional)',
+                        hintText: 'https://example.com/account',
+                        prefixIcon: const Icon(Icons.link),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      enabled: !subscriptionState.isLoading,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Save Button
+                    FilledButton(
+                      onPressed: subscriptionState.isLoading
+                          ? null
+                          : _saveSubscription,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: subscriptionState.isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              isEditing
+                                  ? 'Update Subscription'
+                                  : 'Save Subscription',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
-                const SizedBox(height: 24),
-              ],
+              ),
             ),
           ),
         ),

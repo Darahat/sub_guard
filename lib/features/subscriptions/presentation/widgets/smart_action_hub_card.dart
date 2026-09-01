@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:heroicons/heroicons.dart';
 
 import '../../../../core/currency/currency_converter.dart';
+import '../../../../core/layout/responsive_layout.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../budget/presentation/providers/budget_providers.dart';
@@ -125,6 +126,9 @@ class SmartActionHubCard extends ConsumerWidget {
                     context: context,
                     isScrollControlled: true,
                     backgroundColor: Colors.transparent,
+                    constraints: Breakpoints.isTablet(context)
+                        ? const BoxConstraints(maxWidth: 600)
+                        : null,
                     builder: (context) =>
                         ActionHubModalSheet(totalCount: totalCount),
                   );

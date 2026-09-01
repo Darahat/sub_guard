@@ -56,31 +56,32 @@ This document provides a full activity checklist for every user-visible flow in 
 
 ## 6. Payment Methods & Reassignment
 
+=]??']\[=-]\[6]'
+
 - **File / Widget**: `lib/features/payment_methods/presentation/screens/reassign_payment_method_sheet.dart`
 - **Location**: Settings → **Payment Methods** → Tap a card with linked subscriptions → **"Reassign Subscriptions"** (or via **PaymentShieldCard**)
 - **Purpose**: Batch-migrate subscriptions from one payment method to another (e.g., when a card expires or is deleted).
 - **Test Checklist**:
-  - [ ] Tap a payment method with linked subscriptions and select **Reassign Subscriptions**.
-  - [ ] Verify the list of affected subscriptions is displayed with checkboxes.
-  - [ ] Test the **Select All** pill (toggles between select-all and deselect-all).
-  - [ ] Pick a new target payment method and tap **Reassign Subscriptions**.
-  - [ ] Confirm that all selected subscriptions are updated with the new card.
+  - [done ] Tap a payment method with linked subscriptions and select **Reassign Subscriptions**.
+  - [ done] Verify the list of affected subscriptions is displayed with checkboxes.
+  - [ done] Test the **Select All** pill (toggles between select-all and deselect-all).
+  - [done] Pick a new target payment method and tap **Reassign Subscriptions**.
+  - [ done] Confirm that all selected subscriptions are updated with the new card.
 
 ## 7. Smart Action Hub Cards
 
-- **File / Widget**: `lib/features/subscriptions/presentation/widgets/smart_action_hub_card.dart`
-- **Purpose**: Aggregate contextual actions such as price-hike alerts, contract renewals, etc.
+- **File / Widget**: `lib/features/subscriptions/presentation/widgets/smart_action_hub_card.dart`- **Purpose**: Aggregate contextual actions such as price-hike alerts, contract renewals, etc.
 - **Test Checklist**:
-  - [ ] Verify each hub entry displays a clear header, supporting icon, and actionable button.
-  - [ ] Tap the action button and confirm the appropriate bottom sheet or dialog appears.
-  - [ ] Ensure the hub respects the muted color palette and does not overflow on small screens.
+  - [ done] Verify each hub entry displays a clear header, supporting icon, and actionable button.
+  - [ done] Tap the action button and confirm the appropriate bottom sheet or dialog appears.
+  - [ done] Ensure the hub respects the muted color palette and does not overflow on small screens.
 
 ## 8. General UI/UX Consistency (Cross-Feature)
 
 - **Purpose**: Ensure the entire app adheres to the **10 Strict Anti-AI UI Rules**.
 - **Test Checklist**:
-  - [ ] All buttons use the rounded-pill style with appropriate hover/press states.
-  - [ ] Haptic feedback is present on taps, swipes, and state changes.
-  - [ ] No layout overflow warnings on any screen (verified on small screen devices).
-  - [ ] Visual contrast meets accessibility guidelines in both light and dark mode.
-  - [ ] Animations (e.g., fingerprint pulsation, bottom-sheet slide) are smooth and do not cause jank.
+  - [done ] All buttons use the rounded-pill style with appropriate hover/press states.
+  - [ done] Haptic feedback is present on taps, swipes, and state changes.
+  - [done ] No layout overflow warnings on any screen (verified on small screen devices).
+  - [ done] Visual contrast meets accessibility guidelines in both light and dark mode.
+  - [done ] Animations (e.g., fingerprint pulsation, bottom-sheet slide) are smooth and do not cause jank.

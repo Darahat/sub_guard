@@ -4,11 +4,13 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../firebase/firebase_config.dart';
+import '../../features/auth/domain/entities/user_entity.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/subscriptions/data/datasources/local_subscription_datasource.dart';
 import '../../features/subscriptions/data/datasources/remote_subscription_datasource.dart';
+import '../../features/subscriptions/presentation/providers/subscription_notifier.dart';
 import '../../features/subscriptions/presentation/providers/subscription_providers.dart';
+import '../firebase/firebase_config.dart';
 import 'sync_status.dart';
 
 /// Service for synchronizing local and remote data
@@ -94,6 +96,11 @@ class SyncService {
 
       // Sync subscriptions
       await _syncSubscriptions(currentUserId);
+
+      // Auto-reload UI in-memory state from local Hive storage
+      await _ref
+          .read(subscriptionNotifierProvider.notifier)
+          .loadSubscriptions();
 
       // Update status to success
       _updateStatus(
@@ -215,6 +222,13 @@ final syncServiceProvider = Provider<SyncService>((ref) {
 
   // Initialize on creation
   service.initialize();
+
+  // Auto-sync whenever user logs in or auth state changes
+  ref.listen<UserEntity?>(currentUserProvider, (previous, next) {
+    if (next != null && next.id.isNotEmpty && next.id != 'local_user') {
+      service.syncAll(userId: next.id);
+    }
+  });
 
   // Dispose when provider is disposed
   ref.onDispose(() {

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:heroicons/heroicons.dart';
 
+import '../../../../core/layout/responsive_layout.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
 import '../providers/auth_notifier.dart';
@@ -42,7 +43,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
     // Listen for auth state changes
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
-      if (next.errorMessage != null && (previous?.errorMessage != next.errorMessage)) {
+      if (next.errorMessage != null &&
+          (previous?.errorMessage != next.errorMessage)) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.errorMessage!),
@@ -63,8 +65,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       appBar: AppBar(title: const Text('Forgot Password')),
       body: SafeArea(
         child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: Breakpoints.isTablet(context) ? 480 : double.infinity,
+            ),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: Breakpoints.isTablet(context) ? 32 : 24,
+                vertical: 24,
+              ),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 400),
                 switchInCurve: Curves.easeOutCubic,
@@ -75,6 +84,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               ),
             ),
           ),
+        ),
       ),
     );
   }
@@ -124,9 +134,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           const SizedBox(height: 10),
           Text(
             'Enter your email address and we\'ll send you a link to reset your password.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 36),
@@ -136,7 +146,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+              ),
             ),
             child: TextFormField(
               controller: _emailController,
@@ -146,7 +158,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 hintText: 'Enter your email',
                 prefixIcon: Padding(
                   padding: EdgeInsets.all(12),
-                  child: HeroIcon(HeroIcons.envelope, size: 20, color: Colors.grey),
+                  child: HeroIcon(
+                    HeroIcons.envelope,
+                    size: 20,
+                    color: Colors.grey,
+                  ),
                 ),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
@@ -172,8 +188,16 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 240),
               child: authState.isLoading
-                  ? const Text('Sending...', key: ValueKey('loading'), style: TextStyle(fontSize: 16))
-                  : const Text('Send Reset Link', key: ValueKey('ready'), style: TextStyle(fontSize: 16)),
+                  ? const Text(
+                      'Sending...',
+                      key: ValueKey('loading'),
+                      style: TextStyle(fontSize: 16),
+                    )
+                  : const Text(
+                      'Send Reset Link',
+                      key: ValueKey('ready'),
+                      style: TextStyle(fontSize: 16),
+                    ),
             ),
           ),
           const SizedBox(height: 16),
@@ -228,9 +252,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         const SizedBox(height: 10),
         Text(
           'We sent a password reset link to\n${_emailController.text}',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppColors.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 36),

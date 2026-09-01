@@ -105,11 +105,14 @@ class RemoteSubscriptionDataSourceImpl implements RemoteSubscriptionDataSource {
     SubscriptionModel subscription,
   ) async {
     try {
-      final docRef = _getUserSubscriptionsRef(userId).doc();
+      final docRef = _getUserSubscriptionsRef(
+        userId,
+      ).doc(subscription.subscriptionId);
       final now = DateTime.now();
 
       await docRef.set({
         'subscriptionId': subscription.subscriptionId,
+        'userId': userId,
         'serviceName': subscription.serviceName,
         'amount': subscription.amount,
         'currency': subscription.currency,
@@ -128,9 +131,9 @@ class RemoteSubscriptionDataSourceImpl implements RemoteSubscriptionDataSource {
             ? Timestamp.fromDate(subscription.cancellationDate!)
             : null,
         'createdAt': Timestamp.fromDate(subscription.createdAt ?? now),
-        'updatedAt': Timestamp.fromDate(now),
+        'updatedAt': Timestamp.fromDate(subscription.updatedAt ?? now),
         'deletedAt': null,
-      });
+      }, SetOptions(merge: true));
 
       return docRef.id;
     } on FirebaseException catch (e) {
@@ -151,7 +154,9 @@ class RemoteSubscriptionDataSourceImpl implements RemoteSubscriptionDataSource {
     try {
       final now = DateTime.now();
 
-      await _getUserSubscriptionsRef(userId).doc(subscriptionId).update({
+      await _getUserSubscriptionsRef(userId).doc(subscriptionId).set({
+        'subscriptionId': subscription.subscriptionId,
+        'userId': userId,
         'serviceName': subscription.serviceName,
         'amount': subscription.amount,
         'currency': subscription.currency,
@@ -169,8 +174,8 @@ class RemoteSubscriptionDataSourceImpl implements RemoteSubscriptionDataSource {
         'cancellationDate': subscription.cancellationDate != null
             ? Timestamp.fromDate(subscription.cancellationDate!)
             : null,
-        'updatedAt': Timestamp.fromDate(now),
-      });
+        'updatedAt': Timestamp.fromDate(subscription.updatedAt ?? now),
+      }, SetOptions(merge: true));
     } on FirebaseException catch (e) {
       throw ServerException(
         message: e.message ?? 'Failed to update subscription',

@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:heroicons/heroicons.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/layout/responsive_layout.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_helper.dart';
 import '../../../budget/presentation/providers/budget_providers.dart';
@@ -12,6 +14,7 @@ import '../../../subscriptions/domain/entities/subscription_entity.dart';
 import '../../../subscriptions/presentation/providers/subscription_notifier.dart';
 import '../../domain/entities/payment_method_entity.dart';
 import '../../domain/enums/payment_method_type.dart';
+import '../../domain/services/payment_shield_evaluator.dart';
 import '../providers/payment_method_providers.dart';
 import 'reassign_payment_method_sheet.dart';
 
@@ -26,16 +29,20 @@ class PaymentMethodsScreen extends ConsumerStatefulWidget {
 class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late PageController _cardsPageController;
+  int _currentCardIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _cardsPageController = PageController(viewportFraction: 0.88);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _cardsPageController.dispose();
     super.dispose();
   }
 
@@ -45,11 +52,33 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      constraints: Breakpoints.isTablet(context)
+          ? const BoxConstraints(maxWidth: 600)
+          : null,
       builder: (_) => Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
         child: _AddEditPaymentMethodDialog(existing: existing),
+      ),
+    );
+  }
+
+  void _showLinkSubscriptionsSheet(
+    PaymentMethodEntity method,
+    List<SubscriptionEntity> allSubscriptions,
+  ) {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      constraints: Breakpoints.isTablet(context)
+          ? const BoxConstraints(maxWidth: 600)
+          : null,
+      builder: (_) => _BulkLinkSubscriptionsSheet(
+        paymentMethod: method,
+        allSubscriptions: allSubscriptions,
       ),
     );
   }
@@ -88,6 +117,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
   void _showActionSheet(
     PaymentMethodEntity method,
     List<SubscriptionEntity> linkedSubs,
+    List<SubscriptionEntity> allSubs,
   ) {
     HapticFeedback.lightImpact();
     showCupertinoModalPopup(
@@ -96,6 +126,13 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
         title: Text(method.displayLabel),
         message: Text('${linkedSubs.length} linked subscriptions'),
         actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _showLinkSubscriptionsSheet(method, allSubs);
+            },
+            child: const Text('Link / Manage Subscriptions'),
+          ),
           CupertinoActionSheetAction(
             onPressed: () {
               Navigator.pop(context);
@@ -111,13 +148,16 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
                   context: context,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
+                  constraints: Breakpoints.isTablet(context)
+                      ? const BoxConstraints(maxWidth: 600)
+                      : null,
                   builder: (_) => ReassignPaymentMethodSheet(
                     currentPaymentMethod: method,
                     affectedSubscriptions: linkedSubs,
                   ),
                 );
               },
-              child: const Text('Reassign Subscriptions'),
+              child: const Text('Reassign Subscriptions to Another Card'),
             ),
           CupertinoActionSheetAction(
             isDestructiveAction: true,
@@ -170,266 +210,606 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
               icon: const HeroIcon(HeroIcons.plus, size: 20),
               label: const Text('Add Payment Method'),
             ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: Breakpoints.isDesktop(context)
+                ? 900
+                : (Breakpoints.isTablet(context) ? 720 : double.infinity),
+          ),
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              // 1. Horizontal Carousel + Linked Subscriptions List
+              _buildPaymentMethodsTab(state, subscriptions, now),
+
+              // 2. Spending Breakdown Tab
+              _buildSpendBreakdownTab(breakdown, primaryCurrency),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentMethodsTab(
+    PaymentMethodState state,
+    List<SubscriptionEntity> allSubscriptions,
+    DateTime now,
+  ) {
+    if (state.paymentMethods.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    final safeIndex = _currentCardIndex.clamp(
+      0,
+      state.paymentMethods.length - 1,
+    );
+    final activeMethod = state.paymentMethods[safeIndex];
+    final activeLinkedSubs = allSubscriptions
+        .where((s) => s.paymentMethodId == activeMethod.id)
+        .toList();
+
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(top: 16, bottom: 96),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Payment Methods List
-          state.paymentMethods.isEmpty
-              ? _buildEmptyState()
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-                  itemCount: state.paymentMethods.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final method = state.paymentMethods[index];
-                    final linkedSubs = subscriptions
-                        .where((s) => s.paymentMethodId == method.id)
-                        .toList();
-                    final status = method.evaluateStatus(now);
-                    final isExpiring = status.isActionable;
-
-                    return AspectRatio(
-                      aspectRatio: 1.586,
-                      child: InkWell(
-                        onTap: () => _showActionSheet(method, linkedSubs),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                isExpiring
-                                    ? (status == PaymentExpiryStatus.expired
-                                          ? Colors.red.shade900
-                                          : Colors.amber.shade900)
-                                    : AppColors.primary,
-                                isExpiring
-                                    ? (status == PaymentExpiryStatus.expired
-                                          ? Colors.red.shade700
-                                          : Colors.amber.shade700)
-                                    : AppColors.primary.withValues(alpha: 0.8),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color:
-                                    (isExpiring
-                                            ? (status ==
-                                                      PaymentExpiryStatus
-                                                          .expired
-                                                  ? Colors.red.shade300
-                                                  : Colors.amber.shade300)
-                                            : AppColors.primary)
-                                        .withValues(alpha: 0.4),
-                                blurRadius: 16,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Stack(
-                            children: [
-                              // Subtle background pattern (shimmer illusion)
-                              Positioned(
-                                right: -40,
-                                top: -40,
-                                child: Container(
-                                  width: 150,
-                                  height: 150,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.white.withValues(alpha: 0.1),
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                left: -20,
-                                bottom: -20,
-                                child: Container(
-                                  width: 100,
-                                  height: 100,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.white.withValues(alpha: 0.1),
-                                  ),
-                                ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      HeroIcon(
-                                        method.type.heroIcon,
-                                        color: Colors.white,
-                                        size: 32,
-                                      ),
-                                      if (method.isDefault)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.2,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          child: const Text(
-                                            'DEFAULT',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  Text(
-                                    method.displayLabel,
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                      letterSpacing: 1.2,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        method.formattedExpiry != null
-                                            ? 'EXPIRES ${method.formattedExpiry}'
-                                            : method.type.label.toUpperCase(),
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.white.withValues(
-                                            alpha: 0.8,
-                                          ),
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 1.5,
-                                        ),
-                                      ),
-                                      if (linkedSubs.isNotEmpty)
-                                        Text(
-                                          '${linkedSubs.length} SUBS',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.white.withValues(
-                                              alpha: 0.8,
-                                            ),
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-          // 2. Spending Breakdown
-          ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: breakdown.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final item = breakdown[index];
-              final label = item.paymentMethod?.displayLabel ?? 'Unassigned';
-              final heroIcon =
-                  item.paymentMethod?.type.heroIcon ??
-                  HeroIcons.questionMarkCircle;
-
-              return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.grey.withValues(alpha: 0.15),
+          // Section Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'YOUR PAYMENT CARDS (${state.paymentMethods.length})',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                    letterSpacing: 0.8,
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        HeroIcon(heroIcon, size: 18, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            label,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          CurrencyHelper.formatAmount(
-                            item.totalMonthlySpend,
-                            currency: primaryCurrency,
-                          ),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    LinearProgressIndicator(
-                      value: item.percentageOfTotal / 100,
-                      backgroundColor: Colors.grey.shade100,
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(4),
-                      minHeight: 6,
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '${item.subscriptions.length} subscription(s)',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        Text(
-                          '${item.percentageOfTotal.toStringAsFixed(1)}% of total',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                Text(
+                  'Swipe to view',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-              );
-            },
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // 1. Horizontal Card Carousel (168px Compact Height)
+          SizedBox(
+            height: 168,
+            child: PageView.builder(
+              controller: _cardsPageController,
+              itemCount: state.paymentMethods.length,
+              physics: const BouncingScrollPhysics(),
+              onPageChanged: (index) {
+                HapticFeedback.selectionClick();
+                setState(() => _currentCardIndex = index);
+              },
+              itemBuilder: (context, index) {
+                final method = state.paymentMethods[index];
+                final linkedSubs = allSubscriptions
+                    .where((s) => s.paymentMethodId == method.id)
+                    .toList();
+                return _buildCompactCreditCard(
+                  method,
+                  linkedSubs,
+                  allSubscriptions,
+                  now,
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // 2. Pagination Indicator Dots
+          if (state.paymentMethods.length > 1)
+            Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(state.paymentMethods.length, (index) {
+                  final isSelected = safeIndex == index;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: isSelected ? 20 : 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primary
+                          : Theme.of(
+                              context,
+                            ).dividerColor.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          const SizedBox(height: 24),
+
+          // 3. Subscriptions Attached to this Card Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'LINKED SUBSCRIPTIONS (${activeLinkedSubs.length})',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: () => _showLinkSubscriptionsSheet(
+                    activeMethod,
+                    allSubscriptions,
+                  ),
+                  icon: const HeroIcon(HeroIcons.link, size: 14),
+                  label: const Text(
+                    'Link / Manage',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // 4. Linked Subscriptions List
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _buildLinkedSubscriptionsGroup(
+              activeLinkedSubs,
+              activeMethod,
+              allSubscriptions,
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCompactCreditCard(
+    PaymentMethodEntity method,
+    List<SubscriptionEntity> linkedSubs,
+    List<SubscriptionEntity> allSubs,
+    DateTime now,
+  ) {
+    final status = method.evaluateStatus(now);
+    final isExpiring = status.isActionable;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: InkWell(
+        onTap: () => _showActionSheet(method, linkedSubs, allSubs),
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isExpiring
+                  ? (status == PaymentExpiryStatus.expired
+                        ? [Colors.red.shade900, Colors.red.shade700]
+                        : [Colors.amber.shade900, Colors.amber.shade700])
+                  : [const Color(0xFF1E293B), const Color(0xFF0F172A)],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.12),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // Background decorative glow circle
+              Positioned(
+                right: -20,
+                top: -20,
+                child: Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.05),
+                  ),
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Row 1: Brand Icon & Type + Status Chips & Menu
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          HeroIcon(
+                            method.type.heroIcon,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            method.type.label.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          if (method.isDefault)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'DEFAULT',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: const HeroIcon(
+                              HeroIcons.ellipsisHorizontal,
+                              color: Colors.white70,
+                              size: 20,
+                            ),
+                            onPressed: () =>
+                                _showActionSheet(method, linkedSubs, allSubs),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  // Row 2: Masked Card Number
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      method.last4 != null && method.last4!.isNotEmpty
+                          ? '••••  ••••  ••••  ${method.last4}'
+                          : method.displayLabel,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        letterSpacing: 1.8,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+
+                  // Row 3: Cardholder Label + Expiration Date
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          method.name,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        method.formattedExpiry != null
+                            ? 'Exp: ${method.formattedExpiry}'
+                            : '${linkedSubs.length} SUBS',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w600,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLinkedSubscriptionsGroup(
+    List<SubscriptionEntity> linkedSubs,
+    PaymentMethodEntity activeMethod,
+    List<SubscriptionEntity> allSubs,
+  ) {
+    final theme = Theme.of(context);
+
+    if (linkedSubs.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.12)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const HeroIcon(
+                HeroIcons.link,
+                size: 24,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'No Subscriptions Linked',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Attach subscriptions to "${activeMethod.displayLabel}" to track card expenses automatically.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () =>
+                  _showLinkSubscriptionsSheet(activeMethod, allSubs),
+              icon: const HeroIcon(HeroIcons.plus, size: 16),
+              label: const Text('Link Subscriptions Now'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.12)),
+      ),
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: linkedSubs.length,
+        separatorBuilder: (context, index) => Divider(
+          height: 1,
+          color: theme.dividerColor.withValues(alpha: 0.08),
+        ),
+        itemBuilder: (context, index) {
+          final sub = linkedSubs[index];
+          final formattedNextDate = DateFormat(
+            'MMM dd, yyyy',
+          ).format(sub.nextBillingDate);
+
+          return ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
+            ),
+            leading: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(
+                  sub.serviceName.isNotEmpty
+                      ? sub.serviceName.substring(0, 1).toUpperCase()
+                      : '?',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+            title: Text(
+              sub.serviceName,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+            subtitle: Text(
+              'Renews $formattedNextDate • ${sub.billingCycle.name.toUpperCase()}',
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
+            trailing: Text(
+              CurrencyHelper.formatAmount(sub.amount, currency: sub.currency),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                letterSpacing: -0.3,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSpendBreakdownTab(
+    List<PaymentMethodSpendSummary> breakdown,
+    String primaryCurrency,
+  ) {
+    final theme = Theme.of(context);
+
+    if (breakdown.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const HeroIcon(HeroIcons.chartPie, size: 48, color: Colors.grey),
+              const SizedBox(height: 12),
+              const Text(
+                'No Spend Data Available',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Add subscriptions and payment methods to see spend distributions.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+      itemCount: breakdown.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final item = breakdown[index];
+        final label = item.paymentMethod?.displayLabel ?? 'Unassigned';
+        final heroIcon =
+            item.paymentMethod?.type.heroIcon ?? HeroIcons.questionMarkCircle;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.12),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  HeroIcon(heroIcon, size: 18, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    CurrencyHelper.formatAmount(
+                      item.totalMonthlySpend,
+                      currency: primaryCurrency,
+                    ),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: item.percentageOfTotal / 100,
+                backgroundColor: theme.dividerColor.withValues(alpha: 0.1),
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(4),
+                minHeight: 6,
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${item.subscriptions.length} subscription(s)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  Text(
+                    '${item.percentageOfTotal.toStringAsFixed(1)}% of total',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -476,6 +856,296 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen>
   }
 }
 
+/// Bulk Sheet allowing linking/unlinking subscriptions in 1 tap
+class _BulkLinkSubscriptionsSheet extends ConsumerStatefulWidget {
+  final PaymentMethodEntity paymentMethod;
+  final List<SubscriptionEntity> allSubscriptions;
+
+  const _BulkLinkSubscriptionsSheet({
+    required this.paymentMethod,
+    required this.allSubscriptions,
+  });
+
+  @override
+  ConsumerState<_BulkLinkSubscriptionsSheet> createState() =>
+      _BulkLinkSubscriptionsSheetState();
+}
+
+class _BulkLinkSubscriptionsSheetState
+    extends ConsumerState<_BulkLinkSubscriptionsSheet> {
+  late Set<String> _selectedIds;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIds = widget.allSubscriptions
+        .where((s) => s.paymentMethodId == widget.paymentMethod.id)
+        .map((s) => s.id)
+        .toSet();
+  }
+
+  void _selectAll(bool select) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (select) {
+        _selectedIds = widget.allSubscriptions.map((s) => s.id).toSet();
+      } else {
+        _selectedIds.clear();
+      }
+    });
+  }
+
+  Future<void> _handleSave() async {
+    setState(() => _isSaving = true);
+    HapticFeedback.mediumImpact();
+
+    final toLink = _selectedIds.toList();
+    final toUnlink = widget.allSubscriptions
+        .where(
+          (s) =>
+              s.paymentMethodId == widget.paymentMethod.id &&
+              !_selectedIds.contains(s.id),
+        )
+        .map((s) => s.id)
+        .toList();
+
+    if (toLink.isNotEmpty) {
+      await ref
+          .read(paymentMethodNotifierProvider.notifier)
+          .reassignSubscriptions(
+            subscriptionIds: toLink,
+            newPaymentMethodId: widget.paymentMethod.id,
+          );
+    }
+
+    if (toUnlink.isNotEmpty) {
+      await ref
+          .read(paymentMethodNotifierProvider.notifier)
+          .reassignSubscriptions(
+            subscriptionIds: toUnlink,
+            newPaymentMethodId: null,
+          );
+    }
+
+    setState(() => _isSaving = false);
+
+    if (mounted) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Updated subscriptions linked to "${widget.paymentMethod.displayLabel}".',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.8,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Handle Bar
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.dividerColor.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const HeroIcon(
+                    HeroIcons.link,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Link Subscriptions',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Assign to "${widget.paymentMethod.displayLabel}"',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Select All / Deselect All Controls
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${_selectedIds.length} of ${widget.allSubscriptions.length} selected',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Row(
+                  children: [
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      onPressed: () => _selectAll(true),
+                      child: const Text(
+                        'Select All',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      onPressed: () => _selectAll(false),
+                      child: const Text(
+                        'Clear',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const Divider(height: 1),
+
+            // Subscriptions Checklist
+            if (widget.allSubscriptions.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: Center(
+                  child: Text(
+                    'No subscriptions found in your account.',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ),
+              )
+            else
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: widget.allSubscriptions.length,
+                  itemBuilder: (context, index) {
+                    final sub = widget.allSubscriptions[index];
+                    final isSelected = _selectedIds.contains(sub.id);
+
+                    return CheckboxListTile(
+                      value: isSelected,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                      activeColor: AppColors.primary,
+                      title: Text(
+                        sub.serviceName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${CurrencyHelper.formatAmount(sub.amount, currency: sub.currency)} / ${sub.billingCycle.name}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      onChanged: (val) {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          if (val == true) {
+                            _selectedIds.add(sub.id);
+                          } else {
+                            _selectedIds.remove(sub.id);
+                          }
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+
+            const SizedBox(height: 12),
+
+            // Save Action Button
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: _isSaving ? null : _handleSave,
+              child: _isSaving
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      'Save (${_selectedIds.length} Linked)',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _AddEditPaymentMethodDialog extends ConsumerStatefulWidget {
   final PaymentMethodEntity? existing;
 
@@ -501,16 +1171,12 @@ class _AddEditPaymentMethodDialogState
   void initState() {
     super.initState();
     if (widget.existing != null) {
-      final e = widget.existing!;
-      _nameController.text = e.name;
-      _last4Controller.text = e.last4 ?? '';
-      _selectedType = e.type;
-      _expiryMonth = e.expiryMonth;
-      _expiryYear = e.expiryYear;
-      _isDefault = e.isDefault;
-    } else {
-      _expiryMonth = DateTime.now().month;
-      _expiryYear = DateTime.now().year + 3;
+      _nameController.text = widget.existing!.name;
+      _last4Controller.text = widget.existing!.last4 ?? '';
+      _selectedType = widget.existing!.type;
+      _expiryMonth = widget.existing!.expiryMonth;
+      _expiryYear = widget.existing!.expiryYear;
+      _isDefault = widget.existing!.isDefault;
     }
   }
 
@@ -521,249 +1187,232 @@ class _AddEditPaymentMethodDialogState
     super.dispose();
   }
 
-  Future<void> _save() async {
+  Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final now = DateTime.now();
-    final isEditing = widget.existing != null;
+    HapticFeedback.mediumImpact();
+    final isNew = widget.existing == null;
+    final id = widget.existing?.id ?? const Uuid().v4();
+
     final method = PaymentMethodEntity(
-      id: widget.existing?.id ?? const Uuid().v4(),
+      id: id,
       name: _nameController.text.trim(),
       type: _selectedType,
-      last4: _last4Controller.text.trim().isEmpty
-          ? null
-          : _last4Controller.text.trim(),
-      expiryMonth: _selectedType.supportsExpiry ? _expiryMonth : null,
-      expiryYear: _selectedType.supportsExpiry ? _expiryYear : null,
+      last4: _last4Controller.text.trim().isNotEmpty
+          ? _last4Controller.text.trim()
+          : null,
+      expiryMonth: _expiryMonth,
+      expiryYear: _expiryYear,
       isDefault: _isDefault,
-      createdAt: widget.existing?.createdAt ?? now,
-      updatedAt: now,
+      createdAt: widget.existing?.createdAt ?? DateTime.now(),
+      updatedAt: DateTime.now(),
     );
 
-    if (isEditing) {
-      await ref
-          .read(paymentMethodNotifierProvider.notifier)
-          .updatePaymentMethod(method);
-    } else {
-      await ref
-          .read(paymentMethodNotifierProvider.notifier)
-          .addPaymentMethod(method);
-    }
+    final success = isNew
+        ? await ref
+              .read(paymentMethodNotifierProvider.notifier)
+              .addPaymentMethod(method)
+        : await ref
+              .read(paymentMethodNotifierProvider.notifier)
+              .updatePaymentMethod(method);
 
-    if (mounted) Navigator.of(context).pop();
+    if (success && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.existing != null;
-    final currentYear = DateTime.now().year;
+    final theme = Theme.of(context);
+    final now = DateTime.now();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Grab Handle
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.dividerColor.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            Text(
-              isEditing ? 'Edit Payment Method' : 'Add Payment Method',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            Flexible(
-              child: SingleChildScrollView(
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: _nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Method Name / Nickname *',
-                          hintText: 'e.g., Chase Sapphire, Work Amex',
-                          prefixIcon: Padding(
-                            padding: EdgeInsets.all(12),
-                            child: HeroIcon(
-                              HeroIcons.pencilSquare,
-                              size: 20,
-                              color: Colors.grey,
-                            ),
+              const SizedBox(height: 16),
+
+              Text(
+                widget.existing == null
+                    ? 'Add Payment Method'
+                    : 'Edit Payment Method',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Type Selector
+              DropdownButtonFormField<PaymentMethodType>(
+                initialValue: _selectedType,
+                decoration: InputDecoration(
+                  labelText: 'Payment Method Type',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                items: PaymentMethodType.values.map((type) {
+                  return DropdownMenuItem(
+                    value: type,
+                    child: Row(
+                      children: [
+                        HeroIcon(type.heroIcon, size: 18),
+                        const SizedBox(width: 8),
+                        Text(type.label),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedType = val);
+                },
+              ),
+              const SizedBox(height: 14),
+
+              // Name / Cardholder / Label
+              TextFormField(
+                controller: _nameController,
+                decoration: InputDecoration(
+                  labelText: 'Card / Account Label',
+                  hintText: 'e.g. Chase Sapphire, Personal PayPal',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                validator: (val) => val == null || val.trim().isEmpty
+                    ? 'Label is required'
+                    : null,
+              ),
+              const SizedBox(height: 14),
+
+              // Last 4 digits (if applicable)
+              if (_selectedType.supportsExpiry)
+                TextFormField(
+                  controller: _last4Controller,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  decoration: InputDecoration(
+                    labelText: 'Last 4 Digits',
+                    hintText: '4242',
+                    counterText: '',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val != null && val.isNotEmpty && val.length != 4) {
+                      return 'Must be exactly 4 digits';
+                    }
+                    return null;
+                  },
+                ),
+              if (_selectedType.supportsExpiry) const SizedBox(height: 14),
+
+              // Expiry Month & Year (if applicable)
+              if (_selectedType.supportsExpiry)
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        initialValue: _expiryMonth,
+                        decoration: InputDecoration(
+                          labelText: 'Month',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        validator: (val) => val == null || val.trim().isEmpty
-                            ? 'Name is required'
-                            : null,
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<PaymentMethodType>(
-                        initialValue: _selectedType,
-                        decoration: const InputDecoration(
-                          labelText: 'Payment Type',
-                          prefixIcon: Padding(
-                            padding: EdgeInsets.all(12),
-                            child: HeroIcon(
-                              HeroIcons.squares2x2,
-                              size: 20,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ),
-                        items: PaymentMethodType.values.map((t) {
+                        items: List.generate(12, (i) => i + 1).map((m) {
                           return DropdownMenuItem(
-                            value: t,
-                            child: Row(
-                              children: [
-                                HeroIcon(
-                                  t.heroIcon,
-                                  size: 18,
-                                  color: AppColors.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(t.label),
-                              ],
-                            ),
+                            value: m,
+                            child: Text(m.toString().padLeft(2, '0')),
                           );
                         }).toList(),
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedType = val);
-                        },
+                        onChanged: (val) => setState(() => _expiryMonth = val),
                       ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _last4Controller,
-                        keyboardType: TextInputType.number,
-                        maxLength: 4,
-                        decoration: const InputDecoration(
-                          labelText: 'Last 4 Digits (Optional)',
-                          hintText: '4821',
-                          prefixIcon: Padding(
-                            padding: EdgeInsets.all(12),
-                            child: HeroIcon(
-                              HeroIcons.hashtag,
-                              size: 20,
-                              color: Colors.grey,
-                            ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        initialValue: _expiryYear,
+                        decoration: InputDecoration(
+                          labelText: 'Year',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          counterText: '',
                         ),
+                        items: List.generate(15, (i) => now.year + i).map((y) {
+                          return DropdownMenuItem(
+                            value: y,
+                            child: Text(y.toString()),
+                          );
+                        }).toList(),
+                        onChanged: (val) => setState(() => _expiryYear = val),
                       ),
-                      if (_selectedType.supportsExpiry) ...[
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<int>(
-                                initialValue: _expiryMonth,
-                                decoration: const InputDecoration(
-                                  labelText: 'Exp Month',
-                                ),
-                                items: List.generate(12, (i) => i + 1).map((m) {
-                                  return DropdownMenuItem(
-                                    value: m,
-                                    child: Text(m.toString().padLeft(2, '0')),
-                                  );
-                                }).toList(),
-                                onChanged: (v) =>
-                                    setState(() => _expiryMonth = v),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: DropdownButtonFormField<int>(
-                                initialValue: _expiryYear,
-                                decoration: const InputDecoration(
-                                  labelText: 'Exp Year',
-                                ),
-                                items: List.generate(15, (i) => currentYear + i)
-                                    .map((y) {
-                                      return DropdownMenuItem(
-                                        value: y,
-                                        child: Text('$y'),
-                                      );
-                                    })
-                                    .toList(),
-                                onChanged: (v) =>
-                                    setState(() => _expiryYear = v),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: 12),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text(
-                          'Set as Default Method',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        value: _isDefault,
-                        activeTrackColor: AppColors.primary,
-                        onChanged: (val) {
-                          HapticFeedback.lightImpact();
-                          setState(() => _isDefault = val);
-                        },
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const HeroIcon(
-                            HeroIcons.shieldCheck,
-                            size: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                          const SizedBox(width: 6),
-                          const Expanded(
-                            child: Text(
-                              'Non-sensitive metadata only. Never enter CVVs or passwords.',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+              if (_selectedType.supportsExpiry) const SizedBox(height: 14),
+
+              // Is Default Toggle
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Set as Default Payment Method',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text(
+                  'Auto-assign this method to newly created subscriptions',
+                ),
+                value: _isDefault,
+                onChanged: (val) {
+                  HapticFeedback.lightImpact();
+                  setState(() => _isDefault = val);
+                },
+              ),
+              const SizedBox(height: 18),
+
+              // Save Button
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _handleSave,
+                child: Text(
+                  widget.existing == null
+                      ? 'Add Payment Method'
+                      : 'Update Payment Method',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: _save,
-                    child: Text(isEditing ? 'Save' : 'Add'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

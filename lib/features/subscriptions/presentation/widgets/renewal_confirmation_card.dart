@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:heroicons/heroicons.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/layout/responsive_layout.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_helper.dart';
 import '../../domain/entities/price_history.dart';
@@ -93,6 +94,9 @@ class _RenewalConfirmationCardState
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
+      constraints: Breakpoints.isTablet(context)
+          ? const BoxConstraints(maxWidth: 600)
+          : null,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:heroicons/heroicons.dart';
 
+import '../../../../core/layout/responsive_layout.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_helper.dart';
 import '../../../budget/presentation/providers/budget_providers.dart';
@@ -117,6 +118,9 @@ class PaymentShieldCard extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      constraints: Breakpoints.isTablet(context)
+          ? const BoxConstraints(maxWidth: 600)
+          : null,
       builder: (ctx) {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -253,6 +257,9 @@ class PaymentShieldCard extends ConsumerWidget {
                                     context: context,
                                     isScrollControlled: true,
                                     backgroundColor: Colors.transparent,
+                                    constraints: Breakpoints.isTablet(context)
+                                        ? const BoxConstraints(maxWidth: 600)
+                                        : null,
                                     builder: (_) => ReassignPaymentMethodSheet(
                                       currentPaymentMethod: method,
                                       affectedSubscriptions:
